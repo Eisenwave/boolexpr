@@ -16,4 +16,7 @@ constexpr bool is_pow_2(unsigned long long x) noexcept {
     return (x & (x - 1)) == 0 && x != 0;
 }
 
+template <auto X>
+inline constexpr auto constant = X;
+
 #endif // UTIL_HPP

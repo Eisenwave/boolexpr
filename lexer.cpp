@@ -5,15 +5,15 @@
 
 namespace {
 
-constexpr bool is_digit(char c) noexcept {
+constexpr bool is_digit(const char c) noexcept {
     return c >= '0' && c <= '9';
 }
 
-constexpr bool is_alpha(char c) noexcept {
+constexpr bool is_alpha(const char c) noexcept {
     return (c | 32) >= 'a' && (c | 32) <= 'z';
 }
 
-constexpr bool is_alphanum(char c) noexcept {
+constexpr bool is_alphanum(const char c) noexcept {
     return is_digit(c) || is_alpha(c);
 }
 
@@ -35,22 +35,22 @@ private:
     [[noreturn]]
     void unexpected_token_error();
 
-    char tokenize_after_whitespace(const char c);
-    char tokenize_in_literal(const char c);
-    char tokenize_after_exclamation(const char c);
-    char tokenize_after_equals(const char c);
+    char tokenize_after_whitespace(char c);
+    char tokenize_in_literal(char c);
+    char tokenize_after_exclamation(char c);
+    char tokenize_after_equals(char c);
 
     template <char Start>
-    char tokenize_after_double_op(const char c);
+    char tokenize_after_double_op(char c);
 
     void push(TokenType type, std::string value);
 
-    void push(TokenType type, char c) {
+    void push(const TokenType type, const char c) {
         tokens.push_back({type, {c}});
     }
 };
 
-void ExpressionTokenizer::push(TokenType type, std::string value) {
+void ExpressionTokenizer::push(const TokenType type, std::string value) {
     static const std::unordered_map<std::string_view, TokenType> reservedWords{
         {"and", TokenType::AND},
         {"nand", TokenType::NAND},

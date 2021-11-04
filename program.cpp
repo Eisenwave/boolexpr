@@ -5,31 +5,105 @@
 
 namespace  {
 
+struct CanonicalInstruction {
+    /// the truth table of the operation
+    std::uint8_t op;
+    /// the index of the first operand, where the first six values are reserved for the program inputs
+    std::uint8_t a;
+    /// the index of the second operand, where the first six values are reserved for the program inputs
+    std::uint8_t b;
+};
+
+struct CanonicalProgram {
+    static constexpr std::size_t instruction_count = 58;
+
+    std::array<Instruction, instruction_count> instructions;
+    unsigned length;
+
+    constexpr void push(Instruction ins) noexcept {
+        instructions[length++] = ins;
+    }
+
+    constexpr void push(Op op, unsigned a, unsigned b) noexcept {
+        push({static_cast<std::uint8_t>(op), static_cast<std::uint8_t>(a), static_cast<std::uint8_t>(b)});
+    }
+
+    constexpr Instruction &top() noexcept {
+        return instructions[length - 1];
+    }
+
+    constexpr const Instruction &top() const noexcept {
+        return instructions[length - 1];
+    }
+
+    constexpr void pop() noexcept {
+        --length;
+    }
+
+    Program to_program(unsigned variables) {
+        static_assert (CanonicalProgram::instruction_count <= Program::instruction_count);
+        Program result{{}, length, variables, {}};
+        std::copy(instructions.begin(), instructions.end(), result.instructions.begin());
+        return result;;
+    }
+};
+
 enum class TruthTableMode {
     TEST,
     FIND
 };
 
-// FIXME: make template where state can be larger bit-vector to handle long input programs
-constexpr bool program_emulate_once(const Program &program, std::uint64_t state) noexcept
+
+struct bitvec256 {
+    std::uint64_t bits[4];
+
+    bitvec256(std::uint64_t bits) : bits{bits, 0, 0, 0} {}
+};
+
+constexpr bool get_bit(const bitvec256 &vec, const std::uint64_t i) noexcept
+{
+    return vec.bits[i / 64] >> i % 64 & 1;
+}
+
+constexpr void set_bit_if(bitvec256 &vec, const std::uint64_t i, const bool condition) noexcept
+{
+    vec.bits[i / 64] |= std::uint64_t{condition} << i % 64;
+}
+
+constexpr bool get_bit(const std::uint64_t vec, const std::uint64_t i) noexcept
+{
+    return vec >> i & 1;
+}
+
+constexpr void set_bit_if(std::uint64_t &vec, const std::uint64_t i, const bool condition) noexcept
+{
+    vec |= std::uint64_t{condition} << i;
+}
+
+template <typename P>
+using program_state_type = std::conditional_t<(P::instruction_count <= 58), std::uint64_t, bitvec256>;
+
+template <typename P>
+constexpr bool program_emulate_once(const P &program, program_state_type<P> state) noexcept
 {
     bool res = false;
     for (unsigned i = 0; i < program.length; ++i) {
         const Instruction ins = program.instructions[i];
-        const bool a = state >> ins.a & 1;
-        const bool b = state >> ins.b & 1;
+        const bool a = get_bit(state, ins.a);
+        const bool b = get_bit(state, ins.b);
         res = ins.op >> (a << 1 | b) & 1;
-        state |= std::uint64_t{res} << (i + 6);
+        set_bit_if(state, i + 6, res);
     }
     return res;
 }
 
-template <TruthTableMode Mode, unsigned Variables>
-constexpr std::uint64_t program_emulate(const Program &program,
+template <TruthTableMode Mode, typename P, typename V>
+constexpr std::uint64_t program_emulate(const P &program,
+                                        const V variables,
                                         const TruthTable table [[maybe_unused]] = {}) noexcept
 {
     std::uint64_t result = 0;
-    for (unsigned v = 0; v < 1 << Variables; ++v) {
+    for (std::uint64_t v = 0; v < 1 << variables; ++v) {
         const bool res = program_emulate_once(program, v);
         if constexpr (Mode == TruthTableMode::TEST) {
             const bool expected = (res ? table.f : table.t) >> v & 1;
@@ -44,30 +118,18 @@ constexpr std::uint64_t program_emulate(const Program &program,
     return Mode == TruthTableMode::TEST ? 1u : result;
 }
 
-template <TruthTableMode Mode>
-constexpr std::uint64_t program_emulate(const Program &program,
-                                        const TruthTable table [[maybe_unused]] = {}) noexcept
+template <InstructionSet InstructionSet, typename V>
+constexpr bool do_find_equivalent_program(CanonicalProgram &program,
+                                          const TruthTable table,
+                                          const V variables,
+                                          const unsigned len) noexcept
 {
-    switch (program.variables) {
-    case 1: return program_emulate<Mode, 1>(program, table);
-    case 2: return program_emulate<Mode, 2>(program, table);
-    case 3: return program_emulate<Mode, 3>(program, table);
-    case 4: return program_emulate<Mode, 4>(program, table);
-    case 5: return program_emulate<Mode, 5>(program, table);
-    case 6: return program_emulate<Mode, 6>(program, table);
-    }
-    __builtin_unreachable();
-}
-
-template <InstructionSet InstructionSet, unsigned Variables>
-constexpr bool do_find_equivalent_program(Program &program, const TruthTable table, const unsigned len) noexcept
-{
-    constexpr auto fix_operand = [](unsigned o) {
-        return o + (o >= Variables) * (6 - Variables);
+    const auto fix_operand = [variables](const unsigned o) {
+        return o + (o >= variables) * (6 - variables);
     };
 
     if (program.length == len) {
-        return program_emulate<TruthTableMode::TEST, Variables>(program, table);
+        return program_emulate<TruthTableMode::TEST>(program, variables, table);
     }
 
     for (std::uint64_t opcode = to_underlying(InstructionSet); opcode != 0; opcode >>= 4) {
@@ -75,12 +137,12 @@ constexpr bool do_find_equivalent_program(Program &program, const TruthTable tab
         const bool unary = op_is_unary(op);
         const bool commutative = op_is_commutative(op);
 
-        for (unsigned a = 0; a < program.length + Variables; ++a) {
+        for (unsigned a = 0; a < program.length + variables; ++a) {
             const unsigned a_op = fix_operand(a);
 
             if (unary) {
-                program.push({static_cast<std::uint8_t>(op), static_cast<std::uint8_t>(a_op), 0, 0});
-                if (do_find_equivalent_program<InstructionSet, Variables>(program, table, len)) {
+                program.push(op, a_op, 0);
+                if (do_find_equivalent_program<InstructionSet>(program, table, variables, len)) {
                     return true;
                 }
                 program.pop();
@@ -88,12 +150,10 @@ constexpr bool do_find_equivalent_program(Program &program, const TruthTable tab
             }
 
             const unsigned b_start = commutative * (a + 1);
-            for (unsigned b = b_start; b < program.length + Variables; ++b) {
+            for (unsigned b = b_start; b < program.length + variables; ++b) {
                 const unsigned b_op = fix_operand(b);
-                program.push({static_cast<std::uint8_t>(op),
-                              static_cast<std::uint8_t>(a_op),
-                              static_cast<std::uint8_t>(b_op), 0});
-                if (do_find_equivalent_program<InstructionSet, Variables>(program, table, len)) {
+                program.push(op, a_op, b_op);
+                if (do_find_equivalent_program<InstructionSet>(program, table, variables, len)) {
                     return true;
                 }
                 program.pop();
@@ -104,41 +164,42 @@ constexpr bool do_find_equivalent_program(Program &program, const TruthTable tab
     return false;
 }
 
-template <InstructionSet InstructionSet, unsigned Variables>
-Program find_equivalent_program(const TruthTable table) noexcept
-{
-    Program p{{}, 0, Variables, {}};
-
-    for (unsigned len = 1; ; ++len) {
-        p.length = 0;
-
-        if (do_find_equivalent_program<InstructionSet, Variables>(p, table, len)) {
-            return p;
-        }
-    }
-
-    return p;
-}
-
 template <InstructionSet InstructionSet>
-Program find_equivalent_program(const TruthTable table, unsigned variables) noexcept
+constexpr bool do_find_equivalent_program_switch(CanonicalProgram &program,
+                                                 const TruthTable table,
+                                                 const unsigned variables,
+                                                 const unsigned len) noexcept
 {
     switch (variables) {
-    case 1: return find_equivalent_program<InstructionSet, 1>(table);
-    case 2: return find_equivalent_program<InstructionSet, 2>(table);
-    case 3: return find_equivalent_program<InstructionSet, 3>(table);
-    case 4: return find_equivalent_program<InstructionSet, 4>(table);
-    case 5: return find_equivalent_program<InstructionSet, 5>(table);
-    case 6: return find_equivalent_program<InstructionSet, 6>(table);
+    case 1: return do_find_equivalent_program<InstructionSet>(program, table, constant<1u>, len);
+    case 2: return do_find_equivalent_program<InstructionSet>(program, table, constant<2u>, len);
+    case 3: return do_find_equivalent_program<InstructionSet>(program, table, constant<3u>, len);
+    case 4: return do_find_equivalent_program<InstructionSet>(program, table, constant<4u>, len);
+    case 5: return do_find_equivalent_program<InstructionSet>(program, table, constant<5u>, len);
+    case 6: return do_find_equivalent_program<InstructionSet>(program, table, constant<6u>, len);
     }
     __builtin_unreachable();
 }
 
+template <InstructionSet InstructionSet>
+Program find_equivalent_program(const TruthTable table, const unsigned variables) noexcept
+{
+    CanonicalProgram p{{}, 0};
 
+    for (unsigned len = 1; ; ++len) {
+        p.length = 0;
+
+        if (do_find_equivalent_program_switch<InstructionSet>(p, table, variables, len)) {
+            return p.to_program(variables);
+        }
+    }
+
+    return p.to_program(variables);
+}
 
 } // namespace
 
-TruthTable truth_table_parse(std::string_view str) noexcept
+TruthTable truth_table_parse(const std::string_view str) noexcept
 {
     std::uint64_t f = 0, t = 0;
     for (unsigned i = 0; i < str.length(); ++i) {
@@ -153,7 +214,7 @@ TruthTable truth_table_parse(std::string_view str) noexcept
     return {f, t};
 }
 
-bool truth_table_is_valid(std::string_view str) noexcept
+bool truth_table_is_valid(const std::string_view str) noexcept
 {
     if (str.length() > 64) {
         std::cout << "Truth table is too long (at most 64 entries supported)\n";
@@ -174,8 +235,8 @@ bool truth_table_is_valid(std::string_view str) noexcept
 }
 
 Program find_equivalent_program(const TruthTable table,
-                                          const InstructionSet instructionSet,
-                                          const unsigned variables) noexcept {
+                                const InstructionSet instructionSet,
+                                const unsigned variables) noexcept {
     if (instructionSet != InstructionSet::C) {
         std::cout << "Only C instruction set is supported right now\n";
         std::exit(1);
@@ -184,11 +245,11 @@ Program find_equivalent_program(const TruthTable table,
 }
 
 bool program_is_equivalent(const Program &program, const TruthTable table) noexcept {
-    return program_emulate<TruthTableMode::TEST>(program, table);
+    return program_emulate<TruthTableMode::TEST>(program, program.variables, table);
 }
 
 TruthTable program_compute_truth_table(const Program &program) noexcept {
-    std::uint64_t table = program_emulate<TruthTableMode::FIND>(program);
+    std::uint64_t table = program_emulate<TruthTableMode::FIND>(program, program.variables);
     return {table, table};
 }
 
@@ -215,7 +276,7 @@ std::string Program::symbol(std::size_t i) const noexcept
     return result;
 }
 
-std::ostream &print_instruction(std::ostream &out, Instruction ins, const Program &p)
+std::ostream &print_instruction(std::ostream &out, const Instruction ins, const Program &p)
 {
     constexpr const char *DISPLAY_NOT = op_display_label(Op::NOT_A);
 

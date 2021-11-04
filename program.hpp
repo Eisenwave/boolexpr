@@ -5,25 +5,18 @@
 #include <iosfwd>
 #include <string_view>
 #include <string>
+#include <array>
 
 #include "util.hpp"
 #include "operation.hpp"
 
 constexpr char DONT_CARE = 'x';
 
-struct Instruction {
-    /// the truth table of the operation
-    std::uint8_t op;
-    /// the index of the first operand, where the first six values are reserved for the program inputs
-    std::uint8_t a;
-    /// the index of the second operand, where the first six values are reserved for the program inputs
-    std::uint8_t b;
-    /// the distance in the DAG of value dependencies from the program inputs
-    std::uint8_t distance;
-};
-
 enum class InstructionSet : std::uint64_t {
-    NAND = to_underlying(Op::NAND),
+    NAND = to_underlying(Op::NOT_A)
+          | to_underlying(Op::NAND) << 4,
+    NOR = to_underlying(Op::NOT_A)
+          | to_underlying(Op::NOR) << 4,
     BASIC = to_underlying(Op::NOT_A)
           | to_underlying(Op::AND) << 4
           | to_underlying(Op::OR) << 8,
@@ -38,14 +31,29 @@ struct TruthTable {
     std::uint64_t t;
 };
 
+struct Instruction {
+    /// the truth table of the operation
+    std::uint8_t op;
+    /// the index of the first operand, where the first six values are reserved for the program inputs
+    std::uint8_t a;
+    /// the index of the second operand, where the first six values are reserved for the program inputs
+    std::uint8_t b;
+};
+
 struct Program {
-    Instruction instructions[256];
+    static constexpr std::size_t instruction_count = 250;
+
+    std::array<Instruction, instruction_count> instructions;
     unsigned length;
     unsigned variables;
-    std::string symbols[6];
+    std::array<std::string, 6> symbols;
 
-    constexpr void push(Instruction ins) noexcept {
+    constexpr void push(const Instruction ins) noexcept {
         instructions[length++] = ins;
+    }
+
+    constexpr void push(const Op op, const unsigned a, const unsigned b) noexcept {
+        push({static_cast<std::uint8_t>(op), static_cast<std::uint8_t>(a), static_cast<std::uint8_t>(b)});
     }
 
     constexpr Instruction &top() noexcept {

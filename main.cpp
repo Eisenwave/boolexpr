@@ -7,35 +7,6 @@
 
 namespace {
 
-#if 0
-enum Variable : unsigned {
-    VAR_A,
-    VAR_B,
-    VAR_C,
-    VAR_D,
-    VAR_E,
-    VAR_F
-};
-
-void print_playground() {
-    Program p{
-        {
-            {static_cast<unsigned>(Op::AND), VAR_A, VAR_B, 0},
-            {static_cast<unsigned>(Op::B_CONS_A), VAR_A, VAR_B, 0},
-            {static_cast<unsigned>(Op::A_CONS_B), VAR_A, VAR_B, 0},
-            {static_cast<unsigned>(Op::A_ANDN_B), VAR_A, VAR_B, 0},
-            {static_cast<unsigned>(Op::B_ANDN_A), VAR_A, VAR_B, 0},
-            {static_cast<unsigned>(Op::FALSE), 0, 0, 0},
-            {static_cast<unsigned>(Op::NXOR), 6, VAR_C, 0},
-            {static_cast<unsigned>(Op::A), 9, 0, 0},
-            {static_cast<unsigned>(Op::NOT_B), 0, 10, 0},
-        },
-        9, 2
-    };
-    std::cout << p;
-}
-#endif
-
 struct LaunchOptions {
     TruthTable table;
     std::size_t table_variables = 0;
@@ -56,7 +27,7 @@ constexpr char PLSH_SHORT = 'P';
 constexpr char CMPL_SHORT = 'C';
 constexpr char BTBL_SHORT = 'B';
 
-constexpr char parse_option(LaunchOptions &result, std::string_view arg) noexcept {
+constexpr char parse_option(LaunchOptions &result, const std::string_view arg) noexcept {
     if (arg.length() < 2 || arg[0] != '-') {
         return 0;
     }
@@ -132,60 +103,59 @@ int run_help(std::ostream &out) {
     out << "Usage: OPTIONS...\n\n";
 
     out << indent << '-' << HELP_SHORT
-        << ",--help            : show this help menu";
+        << ",--help              show this help menu\n";
     out << indent << '-' << EXPR_SHORT
-        << ",--expr EXPRESSION : input expression (using C expression syntax)\n";
+        << ",--expr EXPRESSION   input expression (using C expression syntax)\n";
     out << indent << '-' << TBLE_SHORT
-        << ",--table TABLE     : input truth table (regex: [10*.]+)\n";
+        << ",--table TABLE       input truth table (regex: [10*.]+)\n";
     out << indent << '-' << TKNZ_SHORT
-        << ",--tokenize        : don't optimize, but tokenize expression and print\n";
+        << ",--tokenize          don't optimize, but tokenize expression and print\n";
     out << indent << '-' << PLSH_SHORT
-        << ",--polish          : don't optimize, but print expression in reverse Polish notation\n";
+        << ",--polish            don't optimize, but print expression in reverse Polish notation\n";
     out << indent << '-' << CMPL_SHORT
-        << ",--compile         : don't optimize, but print print boolean program of expression\n";
+        << ",--compile           don't optimize, but print print boolean program of expression\n";
     out << indent << '-' << BTBL_SHORT
-        << ",--build-table     : don't optimize, but build truth table of expression\n";
+        << ",--build-table       don't optimize, but build truth table of expression\n";
 
     out << '\n';
     out << indent << "Truth table: " << DONT_CARE << " is \"don't care\", . is digit ignored\n";
-    return 0;
+    return EXIT_SUCCESS;
 }
 
 [[nodiscard]]
 int run_tokenize(const LaunchOptions &options) {
     if (options.expression_str.empty()) {
         std::cout << "Tokenize option set but no expression to tokenize was given\n";
-        return 1;
+        return EXIT_FAILURE;
     }
     std::vector<Token> tokens = tokenize(options.expression_str);
     for (auto token : tokens) {
         std::cout << token << '\n';
     }
-    return 0;
+    return EXIT_SUCCESS;
 }
 
 [[nodiscard]]
 int run_polish(const LaunchOptions &options) {
     if (options.expression_str.empty()) {
         std::cout << "Reverse polish output option set but no expression was given\n";
-        return 1;
+        return EXIT_FAILURE;
     }
     std::vector<Token> tokens = tokenize(options.expression_str);
     std::vector<Token> polish;
     if (not to_reverse_polish_notation(polish, tokens)) {
-        return 1;
+        return EXIT_FAILURE;
     }
     for (const auto &token : polish) {
         std::cout << token.value << ' ';
     }
     std::cout << '\n';
-    return 0;
+    return EXIT_SUCCESS;
 }
 
 [[nodiscard]]
-int run_build_table(const Program &program) {
-    std::uint64_t table = program_compute_truth_table(program).t;
-    for (unsigned v = 0; v < 1 << program.variables; ++v) {
+int run_output_table(std::uint64_t table, const unsigned variables) {
+    for (unsigned v = 0; v < 1 << variables; ++v) {
         if (v != 0 && v % 4 == 0) {
             std::cout << '.';
         }
@@ -193,22 +163,12 @@ int run_build_table(const Program &program) {
         table >>= 1;
     }
     std::cout << '\n';
-    return 0;
+
+    return EXIT_SUCCESS;
 }
 
-[[nodiscard]]
-int run(const LaunchOptions &options) {
-    if (options.is_help) {
-        return run_help(std::cout);
-    }
-
-    if (options.table_variables != 0) {
-        unsigned variables = log2floor(options.table_variables);
-        Program program = find_equivalent_program(options.table, InstructionSet::C, variables);
-        std::cout << program << '\n';
-        return 0;
-    }
-
+int run_with_expression(const LaunchOptions &options)
+{
     if (options.is_tokenize) {
         return run_tokenize(options);
     }
@@ -217,22 +177,57 @@ int run(const LaunchOptions &options) {
     }
     if (options.expression_str.empty()) {
         std::cout << "Compile option set but no expression was given\n";
-        return 1;
+        return EXIT_FAILURE;
     }
 
-    std::vector<Token> tokens = tokenize(options.expression_str);
-    Program program = compile(tokens);
+    const std::vector<Token> tokens = tokenize(options.expression_str);
+    const Program program = compile(tokens);
 
     if (options.is_compile) {
         std::cout << program;
-        return 0;
+        return EXIT_SUCCESS;
     }
+
+    const TruthTable table = program_compute_truth_table(program);
     if (options.is_build_table) {
-        return run_build_table(program);
+        return run_output_table(table.t, program.variables);
+    }
+    Program optimal_program = find_equivalent_program(table, InstructionSet::C, program.variables);
+    optimal_program.symbols = std::move(program.symbols);
+    std::cout << optimal_program;
+
+    return EXIT_SUCCESS;
+}
+
+int run_with_truth_table(const LaunchOptions &options)
+{
+    unsigned variables = log2floor(options.table_variables);
+    Program program = find_equivalent_program(options.table, InstructionSet::C, variables);
+    std::cout << program;
+    return EXIT_SUCCESS;
+}
+
+[[nodiscard]]
+int run(const LaunchOptions &options) {
+    if (options.is_help) {
+        return run_help(std::cout);
+    }
+    const bool has_expression = not options.expression_str.empty();
+    const bool has_table = options.table_variables != 0;
+
+    if (has_expression && has_table) {
+        std::cout << "Conflicting inputs: both truth table and expression provided\n";
+        return EXIT_FAILURE;
+    }
+    if (has_expression) {
+        return run_with_expression(options);
+    }
+    if (has_table) {
+        return run_with_truth_table(options);
     }
 
     std::cout << "No input provided\n";
-    return 1;
+    return EXIT_FAILURE;
 }
 
 } // namespace
@@ -243,7 +238,7 @@ int main(int argc, char **argv)
 
     if (argc <= 1) {
         run_help(std::cout);
-        return 1;
+        return EXIT_FAILURE;
     }
 
     LaunchOptions options = parse_program_args(argc, argv);
