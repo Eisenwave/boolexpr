@@ -6,6 +6,7 @@
 #include <string_view>
 #include <string>
 #include <array>
+#include <vector>
 
 #include "util.hpp"
 #include "operation.hpp"
@@ -31,6 +32,10 @@ struct TruthTable {
     std::uint64_t t;
 };
 
+TruthTable truth_table_parse(std::string_view str) noexcept;
+
+bool truth_table_is_valid(std::string_view str) noexcept;
+
 struct Instruction {
     /// the truth table of the operation
     std::uint8_t op;
@@ -38,15 +43,41 @@ struct Instruction {
     std::uint8_t a;
     /// the index of the second operand, where the first six values are reserved for the program inputs
     std::uint8_t b;
+
+    constexpr bool operator==(const Instruction &other) const noexcept {
+        return this->op == other.op && this->a == other.a && this->b == other.b;
+    }
+
+    constexpr bool operator!=(const Instruction &other) const noexcept {
+        return not (*this == other);
+    }
 };
 
-struct Program {
-    static constexpr std::size_t instruction_count = 250;
+inline constexpr Instruction EOF_INSTRUCTION = {0xff, 0xff, 0xff};
 
+struct Program {
+    using instruction_type = Instruction;
+    using state_type = bitvec256;
+    using size_type = std::size_t;
+    static constexpr size_type instruction_count = 250;
+
+private:
     std::array<Instruction, instruction_count> instructions;
-    unsigned length;
-    unsigned variables;
+    size_type length;
+public:
+    size_type variables;
     std::array<std::string, 6> symbols;
+
+public:
+    explicit Program(const size_type variables = 0) : instructions{}, length{0}, variables{variables} {}
+
+    constexpr size_type size() const noexcept {
+        return length;
+    }
+
+    constexpr instruction_type operator[](const size_type i) const noexcept {
+        return instructions[i];
+    }
 
     constexpr void push(const Instruction ins) noexcept {
         instructions[length++] = ins;
@@ -68,22 +99,25 @@ struct Program {
         --length;
     }
 
-    std::string symbol(std::size_t i) const noexcept;
+    constexpr void clear() noexcept {
+        length = 0;
+    }
+
+    std::string symbol(size_type i, bool input_prefix = true) const noexcept;
+
+    bool is_equivalent(TruthTable table) const noexcept;
+
+    TruthTable compute_truth_table() const noexcept;
 };
 
-TruthTable truth_table_parse(std::string_view str) noexcept;
-
-bool truth_table_is_valid(std::string_view str) noexcept;
-
-bool program_is_equivalent(const Program &program, const TruthTable table) noexcept;
-
-TruthTable program_compute_truth_table(const Program &program) noexcept;
-
-Program find_equivalent_program(const TruthTable table,
-                                const InstructionSet instructionSet,
-                                const unsigned variables) noexcept;
+std::vector<Instruction> find_equivalent_programs(const TruthTable table,
+                                                  const InstructionSet instructionSet,
+                                                  const std::size_t variables,
+                                                  const bool exhaustive) noexcept;
 
 std::ostream &print_instruction(std::ostream &out, Instruction ins, const Program &p);
+
+std::ostream &print_program_as_expression(std::ostream &out, const Program &program);
 
 std::ostream& operator<<(std::ostream &out, const Program &p);
 

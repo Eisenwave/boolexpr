@@ -35,6 +35,7 @@ constexpr const char *token_type_label(TokenType type) noexcept {
     }
     __builtin_unreachable();
 }
+#undef BOOLEXPR_ENUM_ACTION
 
 struct Token {
     TokenType type;

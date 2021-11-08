@@ -1,5 +1,4 @@
 #include <iostream>
-#include <unordered_map>
 
 #include "lexer.hpp"
 
@@ -17,6 +16,23 @@ constexpr bool is_alphanum(const char c) noexcept {
     return is_digit(c) || is_alpha(c);
 }
 
+constexpr char to_lower(const char c) noexcept {
+    return c | 32;
+}
+
+constexpr std::uint64_t tiny_string(std::string_view str) {
+    std::uint64_t result = 0;
+    if (str.length() > 8) {
+        return result;
+    }
+    for (const char c : str) {
+        result <<= 8;
+        result |= static_cast<std::uint8_t>(to_lower(c));
+    }
+    return result;
+}
+
+static_assert (tiny_string("nOR") == ('n' << 16 | 'o' << 8 | 'r'));
 
 struct ExpressionTokenizer {
     std::vector<Token> tokens;
@@ -50,33 +66,40 @@ private:
     }
 };
 
-void ExpressionTokenizer::push(const TokenType type, std::string value) {
-    static const std::unordered_map<std::string_view, TokenType> reservedWords{
-        {"and", TokenType::AND},
-        {"nand", TokenType::NAND},
-        {"or", TokenType::OR},
-        {"nor", TokenType::NOR},
-        {"xor", TokenType::XOR},
-        {"nxor", TokenType::NXOR},
-        {"andn", TokenType::ANDN},
-        {"andnot", TokenType::ANDN},
-        {"not", TokenType::NOT}
-    };
+constexpr TokenType token_of_word(std::string_view word) noexcept {
+    switch (tiny_string(word)) {
+    case tiny_string("and"): return TokenType::AND;
 
+    case tiny_string("nand"):
+    case tiny_string("notand"): return TokenType::NAND;
+
+    case tiny_string("or"): return TokenType::OR;
+
+    case tiny_string("nor"):
+    case tiny_string("notor"): return TokenType::NOR;
+
+    case tiny_string("xor"): return TokenType::XOR;
+
+    case tiny_string("nxor"):
+    case tiny_string("notxor"): return TokenType::NXOR;
+
+    case tiny_string("andn"):
+    case tiny_string("andnot"): return TokenType::ANDN;
+
+    case tiny_string("not"): return TokenType::NOT;
+    default: return TokenType::EMPTY;
+    }
+}
+
+void ExpressionTokenizer::push(TokenType type, std::string value) {
     if (type != TokenType::LITERAL) {
         tokens.push_back({type, std::move(value)});
-        return;
-    }
-
-    std::string lower = value;
-    for (char &c : lower) {
-        c |= 32;
-    }
-    if (auto it = reservedWords.find(lower); it != reservedWords.end()) {
-        tokens.push_back({it->second, std::move(value)});
     }
     else {
-        tokens.push_back({TokenType::LITERAL, std::move(value)});
+        if (auto actual_type = token_of_word(value); actual_type != TokenType::EMPTY) {
+            type = actual_type;
+        }
+        tokens.push_back({type, std::move(value)});
     }
 }
 
@@ -264,7 +287,7 @@ char ExpressionTokenizer::tokenize_after_double_op(const char c) {
     }
 }
 
-}
+} // namespace
 
 std::ostream &operator<<(std::ostream &out, const Token &token) {
     return out << token_type_label(token.type) << ":\"" << token.value << '"';

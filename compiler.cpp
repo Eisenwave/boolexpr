@@ -159,7 +159,7 @@ bool compile_from_polish(Program &p, const std::vector<ParserToken> &polish_toke
             std::cout << "Internal error";
             return false;
         }
-        const auto next_operand = static_cast<std::uint8_t>(p.length + VARIABLE_LIMIT);
+        const auto next_operand = static_cast<std::uint8_t>(p.size() + VARIABLE_LIMIT);
         if (op_is_unary(op)) {
             auto top_op = std::exchange(stack.back(), next_operand);
             p.push({static_cast<std::uint8_t>(op), top_op, 0});

@@ -60,6 +60,16 @@ constexpr const char *op_display_label(Op op) noexcept {
     __builtin_unreachable();
 }
 
+constexpr bool op_display_is_reversed(Op op) noexcept {
+    constexpr unsigned bits = 0b0010'0100'0010'0100;
+    return bits >> static_cast<unsigned>(op) & 1;
+}
+
+constexpr bool op_display_is_operand_compl(Op op) noexcept {
+    constexpr unsigned bits = 0b0010'1000'0001'0100u;
+    return bits >> static_cast<unsigned>(op) & 1;
+}
+
 constexpr bool op_is_trivial(Op op) noexcept {
     constexpr unsigned bits = 0b1000'0000'0000'0001u;
     return bits >> static_cast<unsigned>(op) & 1;
@@ -75,18 +85,8 @@ constexpr bool op_is_complement(Op op) noexcept {
     return bits >> static_cast<unsigned>(op) & 1;
 }
 
-constexpr bool op_is_operand_compl(Op op) noexcept {
-    constexpr unsigned bits = 0b0010'1000'0011'1100u;
-    return bits >> static_cast<unsigned>(op) & 1;
-}
-
 constexpr bool op_is_unary(Op op) noexcept {
     constexpr unsigned bits = 0b0001'0100'0010'1000u;
-    return bits >> static_cast<unsigned>(op) & 1;
-}
-
-constexpr bool op_is_reversed_for_display(Op op) noexcept {
-    constexpr unsigned bits = 0b0010'0100'0010'0100;
     return bits >> static_cast<unsigned>(op) & 1;
 }
 
