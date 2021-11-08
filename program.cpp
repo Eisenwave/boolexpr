@@ -3,7 +3,7 @@
 
 #include "program.hpp"
 
-namespace  {
+namespace {
 
 template <typename P>
 constexpr bool program_emulate_once(const P &program, typename P::state_type state) noexcept
@@ -19,10 +19,7 @@ constexpr bool program_emulate_once(const P &program, typename P::state_type sta
     return res;
 }
 
-enum class TruthTableMode {
-    TEST,
-    FIND
-};
+enum class TruthTableMode { TEST, FIND };
 
 template <TruthTableMode Mode, typename P, typename V>
 constexpr std::uint64_t program_emulate(const P &program,
@@ -53,7 +50,8 @@ struct CanonicalInstruction {
     /// the index of the second operand, where the first six values are reserved for the program inputs
     std::uint8_t b;
 
-    constexpr explicit operator Instruction() const noexcept {
+    constexpr explicit operator Instruction() const noexcept
+    {
         return {op, a, b};
     }
 };
@@ -67,45 +65,55 @@ struct CanonicalProgram {
 private:
     std::array<CanonicalInstruction, instruction_count> instructions;
     size_type length = 0;
+
 public:
     size_type target_length;
 
     explicit CanonicalProgram(const size_type target_length) : target_length{target_length} {}
 
-    constexpr size_type size() const noexcept {
+    constexpr size_type size() const noexcept
+    {
         return length;
     }
 
-    constexpr instruction_type operator[](const size_type i) const noexcept {
+    constexpr instruction_type operator[](const size_type i) const noexcept
+    {
         return instructions[i];
     }
 
-    constexpr void push(instruction_type ins) noexcept {
+    constexpr void push(instruction_type ins) noexcept
+    {
         instructions[length++] = ins;
     }
 
-    constexpr void push(Op op, unsigned a, unsigned b) noexcept {
+    constexpr void push(Op op, unsigned a, unsigned b) noexcept
+    {
         push({static_cast<std::uint8_t>(op), static_cast<std::uint8_t>(a), static_cast<std::uint8_t>(b)});
     }
 
-    constexpr void pop() noexcept {
+    constexpr void pop() noexcept
+    {
         --length;
     }
 
-    constexpr instruction_type &top() noexcept {
+    constexpr instruction_type &top() noexcept
+    {
         return instructions[length - 1];
     }
 
-    constexpr const instruction_type &top() const noexcept {
+    constexpr const instruction_type &top() const noexcept
+    {
         return instructions[length - 1];
     }
 
-    constexpr void reset(const size_type target_length) noexcept {
+    constexpr void reset(const size_type target_length) noexcept
+    {
         clear();
         this->target_length = target_length;
     }
 
-    constexpr void clear() noexcept {
+    constexpr void clear() noexcept
+    {
         length = 0;
     }
 };
@@ -118,7 +126,6 @@ enum class FinderDecision : unsigned char {
 template <InstructionSet InstructionSet>
 class ProgramFinder {
 private:
-
     CanonicalProgram program;
     TruthTable table;
     std::size_t variables;
@@ -131,15 +138,13 @@ public:
                            const std::size_t variables,
                            const std::size_t target_length,
                            const bool greedy) noexcept
-        : program{target_length}
-        , table{table}
-        , variables{variables}
-        , greedy{greedy} {}
-
+        : program{target_length}, table{table}, variables{variables}, greedy{greedy}
+    {
+    }
 
     std::vector<Instruction> find_equivalent_program() noexcept
     {
-        for (std::size_t target_length = 1; ; ++target_length) {
+        for (std::size_t target_length = 1;; ++target_length) {
             program.reset(target_length);
 
             if (do_find_equivalent_program_switch()) {
@@ -167,7 +172,8 @@ private:
         __builtin_unreachable();
     }
 
-    void on_matching_emulation() noexcept {
+    void on_matching_emulation() noexcept
+    {
         found = true;
         result.reserve(result.size() + program.size() + 1);
         for (std::size_t i = 0; i < program.size(); ++i) {
@@ -181,7 +187,7 @@ template <InstructionSet InstructionSet>
 template <typename V>
 FinderDecision ProgramFinder<InstructionSet>::do_find_equivalent_program(const V variables) noexcept
 {
-    static_assert (std::is_convertible_v<V, unsigned>);
+    static_assert(std::is_convertible_v<V, unsigned>);
 
     if (program.size() == program.target_length) {
         if (program_emulate<TruthTableMode::TEST>(program, variables, table)) {
@@ -221,7 +227,6 @@ FinderDecision ProgramFinder<InstructionSet>::do_find_equivalent_program(const V
                 }
                 program.pop();
             }
-
         }
     }
     return FinderDecision::KEEP_SEARCHING;
@@ -229,7 +234,7 @@ FinderDecision ProgramFinder<InstructionSet>::do_find_equivalent_program(const V
 
 std::ostream &do_print_program_as_expression(std::ostream &out, const Program &program, const std::size_t i)
 {
-    const auto print_operand = [&](const std::size_t j) -> std::ostream& {
+    const auto print_operand = [&](const std::size_t j) -> std::ostream & {
         if (j < 6) {
             out << program.symbol(j, false);
         }
@@ -284,12 +289,13 @@ std::ostream &do_print_program_as_expression(std::ostream &out, const Program &p
     return out;
 }
 
-} // namespace
+}  // namespace
 
 std::vector<Instruction> find_equivalent_programs(const TruthTable table,
                                                   const InstructionSet instructionSet,
                                                   const std::size_t variables,
-                                                  const bool greedy) noexcept {
+                                                  const bool greedy) noexcept
+{
     if (instructionSet != InstructionSet::C) {
         std::cout << "Only C instruction set is supported right now\n";
         std::exit(1);
@@ -324,7 +330,7 @@ bool truth_table_is_valid(const std::string_view str) noexcept
         std::cout << "Length of truth table has to be a power of two, is " << str.length() << '\n';
         return false;
     }
-    constexpr auto is_valid_table_char = [](unsigned char c){
+    constexpr auto is_valid_table_char = [](unsigned char c) {
         return c == '1' || c == '0' || c == '*';
     };
     if (std::find_if_not(str.begin(), str.end(), is_valid_table_char) != str.end()) {
@@ -334,11 +340,13 @@ bool truth_table_is_valid(const std::string_view str) noexcept
     return true;
 }
 
-bool Program::is_equivalent(const TruthTable table) const noexcept {
+bool Program::is_equivalent(const TruthTable table) const noexcept
+{
     return program_emulate<TruthTableMode::TEST>(*this, this->variables, table);
 }
 
-TruthTable Program::compute_truth_table() const noexcept {
+TruthTable Program::compute_truth_table() const noexcept
+{
     const std::uint64_t table = program_emulate<TruthTableMode::FIND>(*this, static_cast<unsigned>(this->variables));
     return {table, table};
 }
@@ -413,7 +421,7 @@ std::ostream &print_instruction(std::ostream &out, const Instruction ins, const 
     }
 }
 
-std::ostream& operator<<(std::ostream &out, const Program &program)
+std::ostream &operator<<(std::ostream &out, const Program &program)
 {
     for (std::size_t i = 0; i < program.size(); ++i) {
         out << program.symbol(i + 6) << " = ";

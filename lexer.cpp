@@ -4,23 +4,28 @@
 
 namespace {
 
-constexpr bool is_digit(const char c) noexcept {
+constexpr bool is_digit(const char c) noexcept
+{
     return c >= '0' && c <= '9';
 }
 
-constexpr bool is_alpha(const char c) noexcept {
+constexpr bool is_alpha(const char c) noexcept
+{
     return (c | 32) >= 'a' && (c | 32) <= 'z';
 }
 
-constexpr bool is_alphanum(const char c) noexcept {
+constexpr bool is_alphanum(const char c) noexcept
+{
     return is_digit(c) || is_alpha(c);
 }
 
-constexpr char to_lower(const char c) noexcept {
+constexpr char to_lower(const char c) noexcept
+{
     return c | 32;
 }
 
-constexpr std::uint64_t tiny_string(std::string_view str) {
+constexpr std::uint64_t tiny_string(std::string_view str)
+{
     std::uint64_t result = 0;
     if (str.length() > 8) {
         return result;
@@ -32,7 +37,7 @@ constexpr std::uint64_t tiny_string(std::string_view str) {
     return result;
 }
 
-static_assert (tiny_string("nOR") == ('n' << 16 | 'o' << 8 | 'r'));
+static_assert(tiny_string("nOR") == ('n' << 16 | 'o' << 8 | 'r'));
 
 struct ExpressionTokenizer {
     std::vector<Token> tokens;
@@ -45,11 +50,9 @@ struct ExpressionTokenizer {
     void tokenize();
 
 private:
-    [[noreturn]]
-    void error(std::size_t i, std::string_view msg) noexcept;
+    [[noreturn]] void error(std::size_t i, std::string_view msg) noexcept;
 
-    [[noreturn]]
-    void unexpected_token_error();
+    [[noreturn]] void unexpected_token_error();
 
     char tokenize_after_whitespace(char c);
     char tokenize_in_literal(char c);
@@ -61,12 +64,14 @@ private:
 
     void push(TokenType type, std::string value);
 
-    void push(const TokenType type, const char c) {
+    void push(const TokenType type, const char c)
+    {
         tokens.push_back({type, {c}});
     }
 };
 
-constexpr TokenType token_of_word(std::string_view word) noexcept {
+constexpr TokenType token_of_word(std::string_view word) noexcept
+{
     switch (tiny_string(word)) {
     case tiny_string("and"): return TokenType::AND;
 
@@ -91,7 +96,8 @@ constexpr TokenType token_of_word(std::string_view word) noexcept {
     }
 }
 
-void ExpressionTokenizer::push(TokenType type, std::string value) {
+void ExpressionTokenizer::push(TokenType type, std::string value)
+{
     if (type != TokenType::LITERAL) {
         tokens.push_back({type, std::move(value)});
     }
@@ -103,8 +109,8 @@ void ExpressionTokenizer::push(TokenType type, std::string value) {
     }
 }
 
-[[noreturn]]
-void ExpressionTokenizer::error(std::size_t i, std::string_view msg) noexcept {
+[[noreturn]] void ExpressionTokenizer::error(std::size_t i, std::string_view msg) noexcept
+{
     constexpr const char *indent = "        ";
     std::cout << "Parse error at index " << i << ": " << msg << '\n';
     std::cout << indent << '"' << expr << "\"\n";
@@ -112,66 +118,49 @@ void ExpressionTokenizer::error(std::size_t i, std::string_view msg) noexcept {
     std::exit(1);
 }
 
-[[noreturn]]
-void ExpressionTokenizer::unexpected_token_error() {
+[[noreturn]] void ExpressionTokenizer::unexpected_token_error()
+{
     error(i, std::string("Unexpected token '") + expr[i] + '\'');
 }
 
-void ExpressionTokenizer::tokenize() {
+void ExpressionTokenizer::tokenize()
+{
     char state = ' ';
     for (i = 0; i <= expr.length(); ++i) {
         const char c = i == expr.length() ? ' ' : expr[i];
 
         switch (state) {
-        case ' ':
-            state = tokenize_after_whitespace(c);
-            break;
-        case 'a':
-            state = tokenize_in_literal(c);
-            break;
-        case '!':
-            state = tokenize_after_exclamation(c);
-            break;
-        case '=':
-            state = tokenize_after_equals(c);
-            break;
-        case '&':
-            state = tokenize_after_double_op<'&'>(c);
-            break;
-        case '|':
-            state = tokenize_after_double_op<'|'>(c);
-            break;
+        case ' ': state = tokenize_after_whitespace(c); break;
+        case 'a': state = tokenize_in_literal(c); break;
+        case '!': state = tokenize_after_exclamation(c); break;
+        case '=': state = tokenize_after_equals(c); break;
+        case '&': state = tokenize_after_double_op<'&'>(c); break;
+        case '|': state = tokenize_after_double_op<'|'>(c); break;
         }
     }
 }
 
-char ExpressionTokenizer::tokenize_after_whitespace(const char c) {
+char ExpressionTokenizer::tokenize_after_whitespace(const char c)
+{
     if (is_alphanum(c)) {
         literal = {c};
         return 'a';
     }
     switch (c) {
-    case '~':
-        push(TokenType::NOT, "~");
-        return ' ';
+    case '~': push(TokenType::NOT, "~"); return ' ';
     case ' ':
     case '!':
     case '|':
     case '&':
-    case '=':
-        return c;
-    case '(':
-        push(TokenType::PARENS_OPEN, '(');
-        return ' ';
-    case ')':
-        push(TokenType::PARENS_CLOSE, ')');
-        return ' ';
-    default:
-        unexpected_token_error();
+    case '=': return c;
+    case '(': push(TokenType::PARENS_OPEN, '('); return ' ';
+    case ')': push(TokenType::PARENS_CLOSE, ')'); return ' ';
+    default: unexpected_token_error();
     }
 }
 
-char ExpressionTokenizer::tokenize_in_literal(const char c) {
+char ExpressionTokenizer::tokenize_in_literal(const char c)
+{
     if (is_alphanum(c)) {
         literal.push_back(c);
         return 'a';
@@ -185,9 +174,7 @@ char ExpressionTokenizer::tokenize_in_literal(const char c) {
     case '!':
     case '|':
     case '&':
-    case '=':
-        push(TokenType::LITERAL, std::move(literal));
-        return c;
+    case '=': push(TokenType::LITERAL, std::move(literal)); return c;
     case '(':
         push(TokenType::LITERAL, std::move(literal));
         push(TokenType::PARENS_OPEN, '(');
@@ -196,12 +183,12 @@ char ExpressionTokenizer::tokenize_in_literal(const char c) {
         push(TokenType::LITERAL, std::move(literal));
         push(TokenType::PARENS_CLOSE, ')');
         return ' ';
-    default:
-        unexpected_token_error();
+    default: unexpected_token_error();
     }
 }
 
-char ExpressionTokenizer::tokenize_after_exclamation(const char c) {
+char ExpressionTokenizer::tokenize_after_exclamation(const char c)
+{
     if (c == ' ' || is_alphanum(c)) {
         push(TokenType::NOT, '!');
         literal = {c};
@@ -212,12 +199,8 @@ char ExpressionTokenizer::tokenize_after_exclamation(const char c) {
         push(TokenType::NOT, '!');
         push(TokenType::NOT, '~');
         return ' ';
-    case '!':
-        push(TokenType::NOT, '!');
-        return '!';
-    case '=':
-        push(TokenType::XOR, "!=");
-        return ' ';
+    case '!': push(TokenType::NOT, '!'); return '!';
+    case '=': push(TokenType::XOR, "!="); return ' ';
     case '(':
         push(TokenType::NOT, '!');
         push(TokenType::PARENS_OPEN, '(');
@@ -226,7 +209,8 @@ char ExpressionTokenizer::tokenize_after_exclamation(const char c) {
     }
 }
 
-char ExpressionTokenizer::tokenize_after_equals(const char c) {
+char ExpressionTokenizer::tokenize_after_equals(const char c)
+{
     if (c == ' ' || is_alphanum(c)) {
         push(TokenType::NXOR, "=");
         literal = {c};
@@ -237,17 +221,11 @@ char ExpressionTokenizer::tokenize_after_equals(const char c) {
         push(TokenType::NXOR, '=');
         push(TokenType::NOT, '~');
         return ' ';
-    case '=':
-        push(TokenType::NXOR, "==");
-        return ' ';
-    case '>':
-        push(TokenType::CONS, "=>");
-        return ' ';
+    case '=': push(TokenType::NXOR, "=="); return ' ';
+    case '>': push(TokenType::CONS, "=>"); return ' ';
     case '!':
     case '|':
-    case '&':
-        push(TokenType::NXOR, '=');
-        return c;
+    case '&': push(TokenType::NXOR, '='); return c;
     case '(':
         push(TokenType::NXOR, '=');
         push(TokenType::PARENS_OPEN, '(');
@@ -257,11 +235,10 @@ char ExpressionTokenizer::tokenize_after_equals(const char c) {
 }
 
 template <char Start>
-char ExpressionTokenizer::tokenize_after_double_op(const char c) {
-    constexpr TokenType type = Start == '&' ? TokenType::AND
-                             : Start == '|' ? TokenType::OR
-                             : TokenType::LITERAL;
-    static_assert (type != TokenType::LITERAL);
+char ExpressionTokenizer::tokenize_after_double_op(const char c)
+{
+    constexpr TokenType type = Start == '&' ? TokenType::AND : Start == '|' ? TokenType::OR : TokenType::LITERAL;
+    static_assert(type != TokenType::LITERAL);
 
     if (c == ' ' || is_alphanum(c)) {
         push(type, Start);
@@ -273,12 +250,8 @@ char ExpressionTokenizer::tokenize_after_double_op(const char c) {
         push(type, Start);
         push(TokenType::NOT, '~');
         return ' ';
-    case Start:
-        push(type, std::string(2, Start));
-        return ' ';
-    case Start == '&' ? '|' : '&':
-        push(type, Start);
-        return c;
+    case Start: push(type, std::string(2, Start)); return ' ';
+    case Start == '&' ? '|': '&' : push(type, Start); return c;
     case '(':
         push(type, Start);
         push(TokenType::PARENS_OPEN, '(');
@@ -287,13 +260,15 @@ char ExpressionTokenizer::tokenize_after_double_op(const char c) {
     }
 }
 
-} // namespace
+}  // namespace
 
-std::ostream &operator<<(std::ostream &out, const Token &token) {
+std::ostream &operator<<(std::ostream &out, const Token &token)
+{
     return out << token_type_label(token.type) << ":\"" << token.value << '"';
 }
 
-std::vector<Token> tokenize(std::string_view expr) {
+std::vector<Token> tokenize(std::string_view expr)
+{
     ExpressionTokenizer tokenizer{expr};
     tokenizer.tokenize();
     return tokenizer.tokens;

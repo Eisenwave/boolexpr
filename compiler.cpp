@@ -6,16 +6,17 @@
 
 constexpr unsigned VARIABLE_LIMIT = 6;
 
-namespace  {
+namespace {
 
 struct ParserToken {
     TokenType type;
     unsigned operand;
 };
 
-unsigned init_symbol_table(std::string * const symbols,
+unsigned init_symbol_table(std::string *const symbols,
                            std::vector<ParserToken> &parserTokens,
-                           const std::vector<Token> &tokens) {
+                           const std::vector<Token> &tokens)
+{
     unsigned symbol_count = 0;
     parserTokens.reserve(tokens.size());
 
@@ -47,7 +48,8 @@ unsigned init_symbol_table(std::string * const symbols,
     return symbol_count;
 }
 
-constexpr unsigned token_precedence(const TokenType type) noexcept {
+constexpr unsigned token_precedence(const TokenType type) noexcept
+{
     switch (type) {
     case TokenType::EMPTY:
     case TokenType::LITERAL:
@@ -66,7 +68,8 @@ constexpr unsigned token_precedence(const TokenType type) noexcept {
     __builtin_unreachable();
 }
 
-constexpr Op token_operation(const TokenType type) noexcept {
+constexpr Op token_operation(const TokenType type) noexcept
+{
     switch (type) {
     case TokenType::EMPTY:
     case TokenType::LITERAL:
@@ -87,27 +90,22 @@ constexpr Op token_operation(const TokenType type) noexcept {
 }
 
 template <typename T>
-bool to_reverse_polish_notation_impl(std::vector<T> &output, const std::vector<T> &tokens) {
+bool to_reverse_polish_notation_impl(std::vector<T> &output, const std::vector<T> &tokens)
+{
     std::vector<T> op_stack;
 
-    const auto pop_stack_push_output = [&output,  &op_stack] {
+    const auto pop_stack_push_output = [&output, &op_stack] {
         output.push_back(std::move(op_stack.back()));
         op_stack.pop_back();
     };
 
     for (const auto &token : tokens) {
         switch (token.type) {
-        case TokenType::LITERAL:
-            output.push_back(token);
-            break;
+        case TokenType::LITERAL: output.push_back(token); break;
 
-        case TokenType::NOT:
-            op_stack.push_back(token);
-            break;
+        case TokenType::NOT: op_stack.push_back(token); break;
 
-        case TokenType::PARENS_OPEN:
-            op_stack.push_back(token);
-            break;
+        case TokenType::PARENS_OPEN: op_stack.push_back(token); break;
 
         case TokenType::PARENS_CLOSE:
             while (op_stack.back().type != TokenType::PARENS_OPEN) {
@@ -121,15 +119,14 @@ bool to_reverse_polish_notation_impl(std::vector<T> &output, const std::vector<T
                 std::cout << "Syntax error: mismatched parentheses\n";
                 return false;
             }
-            op_stack.pop_back(); // discard opening parenthesis
+            op_stack.pop_back();  // discard opening parenthesis
             if (op_stack.back().type == TokenType::NOT) {
                 pop_stack_push_output();
             }
             break;
 
         default:
-            while (not op_stack.empty() &&
-                   token_precedence(op_stack.back().type) >= 1 &&
+            while (not op_stack.empty() && token_precedence(op_stack.back().type) >= 1 &&
                    token_precedence(op_stack.back().type) <= token_precedence(token.type)) {
                 pop_stack_push_output();
             }
@@ -147,7 +144,8 @@ bool to_reverse_polish_notation_impl(std::vector<T> &output, const std::vector<T
     return true;
 }
 
-bool compile_from_polish(Program &p, const std::vector<ParserToken> &polish_tokens) noexcept {
+bool compile_from_polish(Program &p, const std::vector<ParserToken> &polish_tokens) noexcept
+{
     std::vector<std::uint8_t> stack;
     for (const auto token : polish_tokens) {
         if (token.type == TokenType::LITERAL) {
@@ -174,7 +172,8 @@ bool compile_from_polish(Program &p, const std::vector<ParserToken> &polish_toke
     return true;
 }
 
-bool do_compile(Program &program, const std::vector<ParserToken> &tokens) {
+bool do_compile(Program &program, const std::vector<ParserToken> &tokens)
+{
     std::vector<ParserToken> reverse_polish;
     if (not to_reverse_polish_notation_impl(reverse_polish, tokens)) {
         return false;
@@ -182,14 +181,15 @@ bool do_compile(Program &program, const std::vector<ParserToken> &tokens) {
     return compile_from_polish(program, reverse_polish);
 }
 
-} // namespace
+}  // namespace
 
-bool to_reverse_polish_notation(std::vector<Token> &output, const std::vector<Token> &tokens) {
+bool to_reverse_polish_notation(std::vector<Token> &output, const std::vector<Token> &tokens)
+{
     return to_reverse_polish_notation_impl(output, tokens);
 }
 
-
-Program compile(const std::vector<Token> &tokens) noexcept {
+Program compile(const std::vector<Token> &tokens) noexcept
+{
     Program p{};
     std::vector<ParserToken> parser_tokens;
     p.variables = init_symbol_table(p.symbols.data(), parser_tokens, tokens);

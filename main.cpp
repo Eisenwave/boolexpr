@@ -1,10 +1,10 @@
-#include <iostream>
-#include <iomanip>
 #include <algorithm>
 #include <cstring>
+#include <iomanip>
+#include <iostream>
 
-#include "lexer.hpp"
 #include "compiler.hpp"
+#include "lexer.hpp"
 #include "program.hpp"
 
 namespace {
@@ -47,7 +47,8 @@ constexpr auto COMPILE_LONG = "--compile";
 constexpr auto BUILD_TABLE_SHORT = 'B';
 constexpr auto BUILD_TABLE_LONG = "--build-table";
 
-constexpr char parse_option(LaunchOptions &result, const std::string_view arg) noexcept {
+constexpr char parse_option(LaunchOptions &result, const std::string_view arg) noexcept
+{
     if (arg.length() < 2 || arg[0] != '-') {
         return 0;
     }
@@ -95,15 +96,14 @@ constexpr char parse_option(LaunchOptions &result, const std::string_view arg) n
     return 0;
 }
 
-
-LaunchOptions parse_program_args(int argc, char **argv) {
+LaunchOptions parse_program_args(int argc, char **argv)
+{
     LaunchOptions result;
 
     char state = ' ';
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         switch (state) {
-
         case 'e': {
             result.expression_str = std::move(arg);
             state = 0;
@@ -133,58 +133,46 @@ LaunchOptions parse_program_args(int argc, char **argv) {
     return result;
 }
 
-[[nodiscard]]
-int run_help(std::ostream &out) {
-    constexpr int field_width = 64;
-    constexpr const char *indent = "    ";
+[[nodiscard]] int run_help(std::ostream &out)
+{
+    static constexpr int field_width = 64;
+    static constexpr const char *indent = "    ";
 
     out << "Usage: OPTIONS...\n";
 
+    const auto print = [&out](const char sht, const char *lng, const char *descr, const char *arg = "") {
+        out << indent << '-' << sht << ',' << lng << arg
+            << std::setw(static_cast<int>(field_width - std::strlen(lng) - std::strlen(arg)))
+            << descr << '\n' << std::setw(0);
+    };
+
+    // clang-format off
     out << "\nHelp options:\n";
-    out << indent << '-' << HELP_SHORT << ',' << HELP_LONG
-        << std::setw(field_width - std::strlen(HELP_LONG))
-        << "show this help menu\n" << std::setw(0);
+    print(HELP_SHORT, HELP_LONG, "show this help menu");
 
     out << "\nInput options:\n";
-    out << indent << '-' << EXPR_SHORT << ',' << EXPR_LONG << " EXPRESSION"
-        << std::setw(field_width - std::strlen(EXPR_LONG) - std::strlen(" EXPRESSION"))
-        << "input expression\n" << std::setw(0);
-    out << indent << '-' << TABLE_SHORT << ',' << TABLE_LONG << " TABLE"
-        << std::setw(field_width - std::strlen(TABLE_LONG) - std::strlen(" TABLE"))
-        << "input truth table\n" << std::setw(0);
+    print(EXPR_SHORT, EXPR_LONG, "input expression", " EXPRESSION");
+    print(TABLE_SHORT, TABLE_LONG, "input truth table", " TABLE");
 
     out << "\nOutput flags:\n";
-    out << indent << '-' << GREEDY_SHORT << ',' << GREEDY_LONG
-        << std::setw(field_width - std::strlen(GREEDY_LONG))
-        << "greedily search for all optimal programs\n" << std::setw(0);
-    out << indent << '-' << OUTPUT_EXPR_SHORT << ',' << OUTPUT_EXPR_LONG
-        << std::setw(field_width - std::strlen(OUTPUT_EXPR_LONG))
-        << "print results as expression\n" << std::setw(0);
-    out << indent << '-' << OUTPUT_PROGRAM_SHORT << ',' << OUTPUT_PROGRAM_LONG
-        << std::setw(field_width  - std::strlen(OUTPUT_PROGRAM_LONG))
-        << "print results as program\n" << std::setw(0);
+    print(GREEDY_SHORT, GREEDY_LONG, "greedily search for all optimal programs");
+    print(OUTPUT_EXPR_SHORT, OUTPUT_EXPR_LONG, "print results as expression");
+    print(OUTPUT_PROGRAM_SHORT, OUTPUT_PROGRAM_LONG, "print results as program");
 
     out << "\nAlternative output flags (for input expressions):\n";
-    out << indent << '-' << TOKENIZE_SHORT << ',' << TOKENIZE_LONG
-        << std::setw(field_width - std::strlen(TOKENIZE_LONG))
-        << "tokenize expression and print\n" << std::setw(0);
-    out << indent << '-' << POLISH_SHORT << ',' << POLISH_LONG
-        << std::setw(field_width - std::strlen(POLISH_LONG))
-        << "print expression in reverse Polish notation\n" << std::setw(0);
-    out << indent << '-' << COMPILE_SHORT << ',' << COMPILE_LONG
-        << std::setw(field_width - std::strlen(COMPILE_LONG))
-        << "print print boolean program of expression\n" << std::setw(0);
-    out << indent << '-' << BUILD_TABLE_SHORT << ',' << BUILD_TABLE_LONG
-        << std::setw(field_width - std::strlen(BUILD_TABLE_LONG))
-        << "build truth table of expression\n" << std::setw(0);
+    print(TOKENIZE_SHORT, TOKENIZE_LONG, "tokenize expression and print");
+    print(POLISH_SHORT, POLISH_LONG, "print expression in reverse Polish notation");
+    print(COMPILE_SHORT, POLISH_LONG, "print print boolean program of expression");
+    print(BUILD_TABLE_SHORT, BUILD_TABLE_LONG, "build truth table of expression");
 
     out << '\n';
     out << "Truth table (regex: [10x.]+): " << DONT_CARE << " is \"don't care\", . is digit ignored\n";
+    // clang-format on
     return EXIT_SUCCESS;
 }
 
-[[nodiscard]]
-int run_tokenize(const LaunchOptions &options) {
+[[nodiscard]] int run_tokenize(const LaunchOptions &options)
+{
     if (options.expression_str.empty()) {
         std::cout << "Tokenize option set but no expression to tokenize was given\n";
         return EXIT_FAILURE;
@@ -196,8 +184,8 @@ int run_tokenize(const LaunchOptions &options) {
     return EXIT_SUCCESS;
 }
 
-[[nodiscard]]
-int run_polish(const LaunchOptions &options) {
+[[nodiscard]] int run_polish(const LaunchOptions &options)
+{
     if (options.expression_str.empty()) {
         std::cout << "Reverse polish output option set but no expression was given\n";
         return EXIT_FAILURE;
@@ -214,8 +202,8 @@ int run_polish(const LaunchOptions &options) {
     return EXIT_SUCCESS;
 }
 
-[[nodiscard]]
-int run_output_table(std::uint64_t table, const std::size_t variables) {
+[[nodiscard]] int run_output_table(std::uint64_t table, const std::size_t variables)
+{
     for (std::size_t v = 0; v < 1 << variables; ++v) {
         if (v != 0 && v % 4 == 0) {
             std::cout << '.';
@@ -228,12 +216,10 @@ int run_output_table(std::uint64_t table, const std::size_t variables) {
     return EXIT_SUCCESS;
 }
 
-
-[[nodiscard]]
-int print_results(const std::vector<Instruction> &results,
-                  const std::size_t variables,
-                  const LaunchOptions &options,
-                  Program *const original_program = nullptr)
+[[nodiscard]] int print_results(const std::vector<Instruction> &results,
+                                const std::size_t variables,
+                                const LaunchOptions &options,
+                                Program *const original_program = nullptr)
 {
     Program program{variables};
     if (original_program != nullptr) {
@@ -253,7 +239,7 @@ int print_results(const std::vector<Instruction> &results,
             if (options.is_output_program) {
                 std::cout << program;
             }
-            
+
             program.clear();
             continue;
         }
@@ -263,8 +249,7 @@ int print_results(const std::vector<Instruction> &results,
     return EXIT_SUCCESS;
 }
 
-[[nodiscard]]
-int run_with_expression(const LaunchOptions &options)
+[[nodiscard]] int run_with_expression(const LaunchOptions &options)
 {
     if (options.is_tokenize) {
         return run_tokenize(options);
@@ -290,24 +275,22 @@ int run_with_expression(const LaunchOptions &options)
         return run_output_table(table.t, program.variables);
     }
     const std::vector<Instruction> results =
-            find_equivalent_programs(table, InstructionSet::C, program.variables, options.is_greedy);
+        find_equivalent_programs(table, InstructionSet::C, program.variables, options.is_greedy);
 
     return print_results(results, program.variables, options, &program);
 }
 
-[[nodiscard]]
-int run_with_truth_table(const LaunchOptions &options)
+[[nodiscard]] int run_with_truth_table(const LaunchOptions &options)
 {
     const std::size_t variables = log2floor(options.table_variables);
     const std::vector<Instruction> results =
-            find_equivalent_programs(options.table, InstructionSet::C, variables, options.is_greedy);
+        find_equivalent_programs(options.table, InstructionSet::C, variables, options.is_greedy);
 
     return print_results(results, variables, options);
 }
 
-
-[[nodiscard]]
-int run(const LaunchOptions &options) {
+[[nodiscard]] int run(const LaunchOptions &options)
+{
     if (options.is_help) {
         return run_help(std::cout);
     }
@@ -329,7 +312,7 @@ int run(const LaunchOptions &options) {
     return EXIT_FAILURE;
 }
 
-} // namespace
+}  // namespace
 
 int main(int argc, char **argv)
 {

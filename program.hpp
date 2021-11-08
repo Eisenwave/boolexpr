@@ -1,26 +1,22 @@
 #ifndef PROGRAM_HPP
 #define PROGRAM_HPP
 
+#include <array>
 #include <cstdint>
 #include <iosfwd>
-#include <string_view>
 #include <string>
-#include <array>
+#include <string_view>
 #include <vector>
 
-#include "util.hpp"
 #include "operation.hpp"
+#include "util.hpp"
 
 constexpr char DONT_CARE = 'x';
 
 enum class InstructionSet : std::uint64_t {
-    NAND = to_underlying(Op::NOT_A)
-          | to_underlying(Op::NAND) << 4,
-    NOR = to_underlying(Op::NOT_A)
-          | to_underlying(Op::NOR) << 4,
-    BASIC = to_underlying(Op::NOT_A)
-          | to_underlying(Op::AND) << 4
-          | to_underlying(Op::OR) << 8,
+    NAND = to_underlying(Op::NOT_A) | to_underlying(Op::NAND) << 4,
+    NOR = to_underlying(Op::NOT_A) | to_underlying(Op::NOR) << 4,
+    BASIC = to_underlying(Op::NOT_A) | to_underlying(Op::AND) << 4 | to_underlying(Op::OR) << 8,
     C = BASIC | to_underlying(Op::XOR) << 12,
     X64 = C | to_underlying(Op::A_ANDN_B) << 16,
 };
@@ -44,12 +40,14 @@ struct Instruction {
     /// the index of the second operand, where the first six values are reserved for the program inputs
     std::uint8_t b;
 
-    constexpr bool operator==(const Instruction &other) const noexcept {
+    constexpr bool operator==(const Instruction &other) const noexcept
+    {
         return this->op == other.op && this->a == other.a && this->b == other.b;
     }
 
-    constexpr bool operator!=(const Instruction &other) const noexcept {
-        return not (*this == other);
+    constexpr bool operator!=(const Instruction &other) const noexcept
+    {
+        return not(*this == other);
     }
 };
 
@@ -64,6 +62,7 @@ struct Program {
 private:
     std::array<Instruction, instruction_count> instructions;
     size_type length;
+
 public:
     size_type variables;
     std::array<std::string, 6> symbols;
@@ -71,35 +70,43 @@ public:
 public:
     explicit Program(const size_type variables = 0) : instructions{}, length{0}, variables{variables} {}
 
-    constexpr size_type size() const noexcept {
+    constexpr size_type size() const noexcept
+    {
         return length;
     }
 
-    constexpr instruction_type operator[](const size_type i) const noexcept {
+    constexpr instruction_type operator[](const size_type i) const noexcept
+    {
         return instructions[i];
     }
 
-    constexpr void push(const instruction_type ins) noexcept {
+    constexpr void push(const instruction_type ins) noexcept
+    {
         instructions[length++] = ins;
     }
 
-    constexpr void push(const Op op, const unsigned a, const unsigned b) noexcept {
+    constexpr void push(const Op op, const unsigned a, const unsigned b) noexcept
+    {
         push({static_cast<std::uint8_t>(op), static_cast<std::uint8_t>(a), static_cast<std::uint8_t>(b)});
     }
 
-    constexpr void pop() noexcept {
+    constexpr void pop() noexcept
+    {
         --length;
     }
 
-    constexpr instruction_type &top() noexcept {
+    constexpr instruction_type &top() noexcept
+    {
         return instructions[length - 1];
     }
 
-    constexpr const instruction_type &top() const noexcept {
+    constexpr const instruction_type &top() const noexcept
+    {
         return instructions[length - 1];
     }
 
-    constexpr void clear() noexcept {
+    constexpr void clear() noexcept
+    {
         length = 0;
     }
 
@@ -119,6 +126,6 @@ std::ostream &print_instruction(std::ostream &out, Instruction ins, const Progra
 
 std::ostream &print_program_as_expression(std::ostream &out, const Program &program);
 
-std::ostream& operator<<(std::ostream &out, const Program &p);
+std::ostream &operator<<(std::ostream &out, const Program &p);
 
-#endif // PROGRAM_HPP
+#endif  // PROGRAM_HPP
