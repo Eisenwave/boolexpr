@@ -79,7 +79,7 @@ public:
         return instructions[i];
     }
 
-    constexpr void push(const Instruction ins) noexcept {
+    constexpr void push(const instruction_type ins) noexcept {
         instructions[length++] = ins;
     }
 
@@ -87,16 +87,16 @@ public:
         push({static_cast<std::uint8_t>(op), static_cast<std::uint8_t>(a), static_cast<std::uint8_t>(b)});
     }
 
-    constexpr Instruction &top() noexcept {
-        return instructions[length - 1];
-    }
-
-    constexpr const Instruction &top() const noexcept {
-        return instructions[length - 1];
-    }
-
     constexpr void pop() noexcept {
         --length;
+    }
+
+    constexpr instruction_type &top() noexcept {
+        return instructions[length - 1];
+    }
+
+    constexpr const instruction_type &top() const noexcept {
+        return instructions[length - 1];
     }
 
     constexpr void clear() noexcept {
@@ -111,9 +111,9 @@ public:
 };
 
 std::vector<Instruction> find_equivalent_programs(const TruthTable table,
-                                                  const InstructionSet instructionSet,
-                                                  const std::size_t variables,
-                                                  const bool exhaustive) noexcept;
+                                                  InstructionSet instructionSet,
+                                                  std::size_t variables,
+                                                  bool exhaustive) noexcept;
 
 std::ostream &print_instruction(std::ostream &out, Instruction ins, const Program &p);
 

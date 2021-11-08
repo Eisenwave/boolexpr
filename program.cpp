@@ -80,7 +80,7 @@ public:
         return instructions[i];
     }
 
-    constexpr void push(CanonicalInstruction ins) noexcept {
+    constexpr void push(instruction_type ins) noexcept {
         instructions[length++] = ins;
     }
 
@@ -88,11 +88,15 @@ public:
         push({static_cast<std::uint8_t>(op), static_cast<std::uint8_t>(a), static_cast<std::uint8_t>(b)});
     }
 
-    constexpr CanonicalInstruction &top() noexcept {
+    constexpr void pop() noexcept {
+        --length;
+    }
+
+    constexpr instruction_type &top() noexcept {
         return instructions[length - 1];
     }
 
-    constexpr const CanonicalInstruction &top() const noexcept {
+    constexpr const instruction_type &top() const noexcept {
         return instructions[length - 1];
     }
 
@@ -103,10 +107,6 @@ public:
 
     constexpr void clear() noexcept {
         length = 0;
-    }
-
-    constexpr void pop() noexcept {
-        --length;
     }
 };
 
@@ -287,9 +287,9 @@ std::ostream &do_print_program_as_expression(std::ostream &out, const Program &p
 } // namespace
 
 std::vector<Instruction> find_equivalent_programs(const TruthTable table,
-                                                 const InstructionSet instructionSet,
-                                                 const std::size_t variables,
-                                                 const bool greedy) noexcept {
+                                                  const InstructionSet instructionSet,
+                                                  const std::size_t variables,
+                                                  const bool greedy) noexcept {
     if (instructionSet != InstructionSet::C) {
         std::cout << "Only C instruction set is supported right now\n";
         std::exit(1);
