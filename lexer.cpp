@@ -4,27 +4,27 @@
 
 namespace {
 
-constexpr bool is_digit(const char c) noexcept
+[[nodiscard]] constexpr bool is_digit(const char c) noexcept
 {
     return c >= '0' && c <= '9';
 }
 
-constexpr bool is_alpha(const char c) noexcept
+[[nodiscard]] constexpr bool is_alpha(const char c) noexcept
 {
     return (c | 32) >= 'a' && (c | 32) <= 'z';
 }
 
-constexpr bool is_alphanum(const char c) noexcept
+[[nodiscard]] constexpr bool is_alphanum(const char c) noexcept
 {
     return is_digit(c) || is_alpha(c);
 }
 
-constexpr char to_lower(const char c) noexcept
+[[nodiscard]] constexpr char to_lower(const char c) noexcept
 {
     return c | 32;
 }
 
-constexpr std::uint64_t tiny_string(std::string_view str) noexcept
+[[nodiscard]] constexpr std::uint64_t tiny_string(std::string_view str) noexcept
 {
     std::uint64_t result = 0;
     if (str.length() > 8) {
@@ -39,7 +39,7 @@ constexpr std::uint64_t tiny_string(std::string_view str) noexcept
 
 static_assert(tiny_string("nOR") == ('n' << 16 | 'o' << 8 | 'r'));
 
-constexpr TokenType token_of_word(std::string_view word) noexcept
+[[nodiscard]] constexpr TokenType token_of_word(std::string_view word) noexcept
 {
     switch (tiny_string(word)) {
     case tiny_string("and"): return TokenType::AND;
@@ -65,7 +65,7 @@ constexpr TokenType token_of_word(std::string_view word) noexcept
     }
 }
 
-constexpr TokenType token_type_of_char(char c) noexcept
+[[nodiscard]] constexpr TokenType token_type_of_char(char c) noexcept
 {
     switch (c) {
     case '~': return TokenType::NOT;
@@ -92,13 +92,13 @@ private:
 
     [[noreturn]] void unexpected_token_error();
 
-    char tokenize_after_whitespace(char c);
-    char tokenize_in_literal(char c);
-    char tokenize_after_exclamation(char c);
-    char tokenize_after_equals(char c);
+    [[nodiscard]] char tokenize_after_whitespace(char c);
+    [[nodiscard]] char tokenize_in_literal(char c);
+    [[nodiscard]] char tokenize_after_exclamation(char c);
+    [[nodiscard]] char tokenize_after_equals(char c);
 
     template <char Start>
-    char tokenize_after_double_op(char c);
+    [[nodiscard]] char tokenize_after_double_op(char c);
 
     void push(TokenType type, std::string value);
 
@@ -274,7 +274,7 @@ char ExpressionTokenizer::tokenize_after_double_op(const char c)
 
 std::ostream &operator<<(std::ostream &out, const Token &token)
 {
-    return out << token_type_label(token.type) << ":\"" << token.value << '"';
+    return out << token_label(token.type) << ":\"" << token.value << '"';
 }
 
 std::vector<Token> tokenize(std::string_view expr)

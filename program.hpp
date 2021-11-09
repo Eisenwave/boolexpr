@@ -28,9 +28,9 @@ struct TruthTable {
     std::uint64_t t;
 };
 
-TruthTable truth_table_parse(std::string_view str) noexcept;
+[[nodiscard]] TruthTable truth_table_parse(std::string_view str) noexcept;
 
-bool truth_table_is_valid(std::string_view str) noexcept;
+[[nodiscard]] bool truth_table_is_valid(std::string_view str) noexcept;
 
 struct Instruction {
     /// the truth table of the operation
@@ -110,17 +110,17 @@ public:
         length = 0;
     }
 
-    std::string symbol(size_type i, bool input_prefix = true) const noexcept;
+    [[nodiscard]] std::string symbol(size_type i, bool input_prefix = true) const noexcept;
 
-    bool is_equivalent(TruthTable table) const noexcept;
+    [[nodiscard]] bool is_equivalent(TruthTable table) const noexcept;
 
-    TruthTable compute_truth_table() const noexcept;
+    [[nodiscard]] TruthTable compute_truth_table() const noexcept;
 };
 
-std::vector<Instruction> find_equivalent_programs(const TruthTable table,
-                                                  InstructionSet instructionSet,
-                                                  std::size_t variables,
-                                                  bool exhaustive) noexcept;
+[[nodiscard]] std::vector<Instruction> find_equivalent_programs(const TruthTable table,
+                                                                InstructionSet instructionSet,
+                                                                std::size_t variables,
+                                                                bool exhaustive) noexcept;
 
 std::ostream &print_instruction(std::ostream &out, Instruction ins, const Program &p);
 

@@ -26,7 +26,7 @@
 enum class TokenType : unsigned { BOOLEXPR_ENUM_LIST_TOKEN_TYPE };
 #undef BOOLEXPR_ENUM_ACTION
 
-constexpr const char *token_type_label(TokenType type) noexcept
+[[nodiscard]] constexpr const char *token_label(TokenType type) noexcept
 {
 #define BOOLEXPR_ENUM_ACTION(e) \
     case TokenType::e: return #e;
@@ -44,6 +44,6 @@ struct Token {
 
 std::ostream &operator<<(std::ostream &out, const Token &token);
 
-std::vector<Token> tokenize(std::string_view expr);
+[[nodiscard]] std::vector<Token> tokenize(std::string_view expr);
 
 #endif  // PARSE_HPP

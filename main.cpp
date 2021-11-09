@@ -47,7 +47,7 @@ constexpr auto COMPILE_LONG = "--compile";
 constexpr auto BUILD_TABLE_SHORT = 'B';
 constexpr auto BUILD_TABLE_LONG = "--build-table";
 
-constexpr char parse_option(LaunchOptions &result, const std::string_view arg) noexcept
+[[nodiscard]] constexpr char parse_option(LaunchOptions &result, const std::string_view arg) noexcept
 {
     if (arg.length() < 2 || arg[0] != '-') {
         return 0;
@@ -96,7 +96,7 @@ constexpr char parse_option(LaunchOptions &result, const std::string_view arg) n
     return 0;
 }
 
-LaunchOptions parse_program_args(int argc, char **argv)
+[[nodiscard]] LaunchOptions parse_program_args(int argc, char **argv)
 {
     LaunchOptions result;
 

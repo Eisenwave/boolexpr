@@ -3,8 +3,8 @@
 
 #include "lexer.hpp"
 
-bool to_reverse_polish_notation(std::vector<Token> &output, const std::vector<Token> &tokens);
+[[nodiscard]] bool to_reverse_polish_notation(std::vector<Token> &output, const std::vector<Token> &tokens);
 
-Program compile(const std::vector<Token> &) noexcept;
+[[nodiscard]] Program compile(const std::vector<Token> &) noexcept;
 
 #endif

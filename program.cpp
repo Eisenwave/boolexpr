@@ -6,7 +6,7 @@
 namespace {
 
 template <typename P>
-constexpr bool program_emulate_once(const P &program, typename P::state_type state) noexcept
+[[nodiscard]] constexpr bool program_emulate_once(const P &program, typename P::state_type state) noexcept
 {
     bool res = false;
     for (unsigned i = 0; i < program.size(); ++i) {
@@ -22,9 +22,9 @@ constexpr bool program_emulate_once(const P &program, typename P::state_type sta
 enum class TruthTableMode { TEST, FIND };
 
 template <TruthTableMode Mode, typename P, typename V>
-constexpr std::uint64_t program_emulate(const P &program,
-                                        const V variables,
-                                        const TruthTable table [[maybe_unused]] = {}) noexcept
+[[nodiscard]] constexpr std::uint64_t program_emulate(const P &program,
+                                                      const V variables,
+                                                      const TruthTable table [[maybe_unused]] = {}) noexcept
 {
     std::uint64_t result = 0;
     for (std::uint64_t v = 0; v < 1 << variables; ++v) {
