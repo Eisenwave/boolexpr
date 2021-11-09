@@ -142,8 +142,8 @@ LaunchOptions parse_program_args(int argc, char **argv)
 
     const auto print = [&out](const char sht, const char *lng, const char *descr, const char *arg = "") {
         out << indent << '-' << sht << ',' << lng << arg
-            << std::setw(static_cast<int>(field_width - std::strlen(lng) - std::strlen(arg)))
-            << descr << '\n' << std::setw(0);
+            << std::setw(static_cast<int>(field_width - std::strlen(lng) - std::strlen(arg))) << descr << '\n'
+            << std::setw(0);
     };
 
     // clang-format off
