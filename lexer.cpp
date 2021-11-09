@@ -96,6 +96,18 @@ constexpr TokenType token_of_word(std::string_view word) noexcept
     }
 }
 
+constexpr TokenType token_type_of_char(char c) noexcept
+{
+    switch (c) {
+    case '~': return TokenType::NOT;
+    case '+': return TokenType::OR;
+    case '*': return TokenType::AND;
+    case '(': return TokenType::PARENS_OPEN;
+    case ')': return TokenType::PARENS_CLOSE;
+    default: return TokenType::EMPTY;
+    }
+}
+
 void ExpressionTokenizer::push(TokenType type, std::string value)
 {
     if (type != TokenType::LITERAL) {
@@ -147,14 +159,16 @@ char ExpressionTokenizer::tokenize_after_whitespace(const char c)
         return 'a';
     }
     switch (c) {
-    case '~': push(TokenType::NOT, "~"); return ' ';
+    case '~':
+    case '+':
+    case '*':
+    case '(':
+    case ')': push(token_type_of_char(c), c); return ' ';
     case ' ':
     case '!':
     case '|':
     case '&':
     case '=': return c;
-    case '(': push(TokenType::PARENS_OPEN, '('); return ' ';
-    case ')': push(TokenType::PARENS_CLOSE, ')'); return ' ';
     default: unexpected_token_error();
     }
 }
@@ -167,22 +181,18 @@ char ExpressionTokenizer::tokenize_in_literal(const char c)
     }
     switch (c) {
     case '~':
+    case '+':
+    case '*':
+    case '(':
+    case ')':
         push(TokenType::LITERAL, std::move(literal));
-        push(TokenType::NOT, '~');
+        push(token_type_of_char(c), c);
         return ' ';
     case ' ':
     case '!':
     case '|':
     case '&':
     case '=': push(TokenType::LITERAL, std::move(literal)); return c;
-    case '(':
-        push(TokenType::LITERAL, std::move(literal));
-        push(TokenType::PARENS_OPEN, '(');
-        return ' ';
-    case ')':
-        push(TokenType::LITERAL, std::move(literal));
-        push(TokenType::PARENS_CLOSE, ')');
-        return ' ';
     default: unexpected_token_error();
     }
 }
@@ -196,15 +206,15 @@ char ExpressionTokenizer::tokenize_after_exclamation(const char c)
     }
     switch (c) {
     case '~':
+    case '+':
+    case '*':
+    case '(':
+    case ')':
         push(TokenType::NOT, '!');
-        push(TokenType::NOT, '~');
+        push(token_type_of_char(c), c);
         return ' ';
     case '!': push(TokenType::NOT, '!'); return '!';
     case '=': push(TokenType::XOR, "!="); return ' ';
-    case '(':
-        push(TokenType::NOT, '!');
-        push(TokenType::PARENS_OPEN, '(');
-        return ' ';
     default: unexpected_token_error();
     }
 }
@@ -218,18 +228,18 @@ char ExpressionTokenizer::tokenize_after_equals(const char c)
     }
     switch (c) {
     case '~':
+    case '+':
+    case '*':
+    case '(':
+    case ')':
         push(TokenType::NXOR, '=');
-        push(TokenType::NOT, '~');
+        push(token_type_of_char(c), c);
         return ' ';
     case '=': push(TokenType::NXOR, "=="); return ' ';
     case '>': push(TokenType::CONS, "=>"); return ' ';
     case '!':
     case '|':
     case '&': push(TokenType::NXOR, '='); return c;
-    case '(':
-        push(TokenType::NXOR, '=');
-        push(TokenType::PARENS_OPEN, '(');
-        return ' ';
     default: unexpected_token_error();
     }
 }
@@ -247,15 +257,15 @@ char ExpressionTokenizer::tokenize_after_double_op(const char c)
     }
     switch (c) {
     case '~':
+    case '+':
+    case '*':
+    case '(':
+    case ')':
         push(type, Start);
-        push(TokenType::NOT, '~');
+        push(token_type_of_char(c), c);
         return ' ';
     case Start: push(type, std::string(2, Start)); return ' ';
     case Start == '&' ? '|': '&' : push(type, Start); return c;
-    case '(':
-        push(type, Start);
-        push(TokenType::PARENS_OPEN, '(');
-        return ' ';
     default: unexpected_token_error();
     }
 }
