@@ -24,7 +24,7 @@ constexpr char to_lower(const char c) noexcept
     return c | 32;
 }
 
-constexpr std::uint64_t tiny_string(std::string_view str)
+constexpr std::uint64_t tiny_string(std::string_view str) noexcept
 {
     std::uint64_t result = 0;
     if (str.length() > 8) {
@@ -38,37 +38,6 @@ constexpr std::uint64_t tiny_string(std::string_view str)
 }
 
 static_assert(tiny_string("nOR") == ('n' << 16 | 'o' << 8 | 'r'));
-
-struct ExpressionTokenizer {
-    std::vector<Token> tokens;
-    std::string literal;
-    std::size_t i = 0;
-    std::string_view expr;
-
-    explicit ExpressionTokenizer(std::string_view expr) : expr{expr} {}
-
-    void tokenize();
-
-private:
-    [[noreturn]] void error(std::size_t i, std::string_view msg) noexcept;
-
-    [[noreturn]] void unexpected_token_error();
-
-    char tokenize_after_whitespace(char c);
-    char tokenize_in_literal(char c);
-    char tokenize_after_exclamation(char c);
-    char tokenize_after_equals(char c);
-
-    template <char Start>
-    char tokenize_after_double_op(char c);
-
-    void push(TokenType type, std::string value);
-
-    void push(const TokenType type, const char c)
-    {
-        tokens.push_back({type, {c}});
-    }
-};
 
 constexpr TokenType token_of_word(std::string_view word) noexcept
 {
@@ -107,6 +76,37 @@ constexpr TokenType token_type_of_char(char c) noexcept
     default: return TokenType::EMPTY;
     }
 }
+
+struct ExpressionTokenizer {
+    std::vector<Token> tokens;
+    std::string literal;
+    std::size_t i = 0;
+    std::string_view expr;
+
+    explicit ExpressionTokenizer(std::string_view expr) : expr{expr} {}
+
+    void tokenize();
+
+private:
+    [[noreturn]] void error(std::size_t i, std::string_view msg) noexcept;
+
+    [[noreturn]] void unexpected_token_error();
+
+    char tokenize_after_whitespace(char c);
+    char tokenize_in_literal(char c);
+    char tokenize_after_exclamation(char c);
+    char tokenize_after_equals(char c);
+
+    template <char Start>
+    char tokenize_after_double_op(char c);
+
+    void push(TokenType type, std::string value);
+
+    void push(const TokenType type, const char c)
+    {
+        tokens.push_back({type, {c}});
+    }
+};
 
 void ExpressionTokenizer::push(TokenType type, std::string value)
 {
