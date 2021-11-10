@@ -13,11 +13,54 @@ struct ParserToken {
     unsigned operand;
 };
 
-unsigned init_symbol_table(std::string *const symbols,
-                           std::vector<ParserToken> &parserTokens,
-                           const std::vector<Token> &tokens)
+[[nodiscard]] constexpr bool order_is_lexicographical(SymbolOrder order) noexcept
+{
+    return order == SymbolOrder::LEX_ASCENDING || order == SymbolOrder::LEX_DESCENDING;
+}
+
+[[nodiscard]] constexpr bool order_is_descending(SymbolOrder order) noexcept
+{
+    return order == SymbolOrder::APPEARANCE_DESCENDING || order == SymbolOrder::LEX_DESCENDING;
+}
+
+unsigned find_symbols(std::string *const symbols, const std::vector<Token> &tokens)
 {
     unsigned symbol_count = 0;
+
+    for (const auto &token : tokens) {
+        if (token.type != TokenType::LITERAL) {
+            continue;
+        }
+
+        const auto pos = std::find(symbols, symbols + VARIABLE_LIMIT, token.value);
+        if (pos != symbols + VARIABLE_LIMIT) {
+            continue;
+        }
+        if (symbol_count == 6) {
+            std::cout << "Too many variables! (at most " << VARIABLE_LIMIT << " allowed)\n";
+            std::exit(1);
+        }
+        symbols[symbol_count++] = token.value;
+    }
+
+    return symbol_count;
+}
+
+void sort_symbol_table(std::string *const symbols, const unsigned count, const SymbolOrder order) noexcept
+{
+    if (order_is_lexicographical(order)) {
+        std::sort(symbols, symbols + count);
+    }
+    if (order_is_descending(order)) {
+        std::reverse(symbols, symbols + count);
+    }
+}
+
+void apply_symbol_table(const std::string *const symbols,
+                        const unsigned count,
+                        std::vector<ParserToken> &parserTokens,
+                        const std::vector<Token> &tokens)
+{
     parserTokens.reserve(tokens.size());
 
     for (const auto &token : tokens) {
@@ -26,26 +69,26 @@ unsigned init_symbol_table(std::string *const symbols,
             continue;
         }
 
-        const auto pos = std::find(symbols, symbols + VARIABLE_LIMIT, token.value);
+        const auto pos = std::find(symbols, symbols + count, token.value);
         const auto index = static_cast<unsigned>(pos - symbols);
-        if (pos != symbols + VARIABLE_LIMIT) {
-            parserTokens.push_back({token.type, index});
-            continue;
-        }
-        if (symbol_count == 6) {
-            std::cout << "Too many variables! (at most " << VARIABLE_LIMIT << " allowed)\n";
-            std::exit(1);
-        }
-        parserTokens.push_back({token.type, symbol_count});
-        symbols[symbol_count++] = token.value;
+        parserTokens.push_back({token.type, index});
     }
+}
 
-    if (symbol_count == 0) {
+unsigned init_symbol_table(std::string *const symbols,
+                           std::vector<ParserToken> &parserTokens,
+                           const std::vector<Token> &tokens,
+                           const SymbolOrder order)
+{
+    const unsigned count = find_symbols(symbols, tokens);
+    if (count == 0) {
         std::cout << "Expression does not contain any variables\n";
         std::exit(1);
     }
 
-    return symbol_count;
+    sort_symbol_table(symbols, count, order);
+    apply_symbol_table(symbols, count, parserTokens, tokens);
+    return count;
 }
 
 constexpr unsigned token_precedence(const TokenType type) noexcept
@@ -188,11 +231,11 @@ bool to_reverse_polish_notation(std::vector<Token> &output, const std::vector<To
     return to_reverse_polish_notation_impl(output, tokens);
 }
 
-Program compile(const std::vector<Token> &tokens) noexcept
+Program compile(const std::vector<Token> &tokens, const SymbolOrder order) noexcept
 {
     Program p{};
     std::vector<ParserToken> parser_tokens;
-    p.variables = init_symbol_table(p.symbols.data(), parser_tokens, tokens);
+    p.variables = init_symbol_table(p.symbols.data(), parser_tokens, tokens, order);
 
     do_compile(p, parser_tokens);
     return p;

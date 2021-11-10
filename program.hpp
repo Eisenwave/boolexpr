@@ -6,12 +6,10 @@
 #include <iosfwd>
 #include <string>
 #include <string_view>
-#include <vector>
 
 #include "operation.hpp"
+#include "truth_table.hpp"
 #include "util.hpp"
-
-constexpr char DONT_CARE = 'x';
 
 enum class InstructionSet : std::uint64_t {
     NAND = to_underlying(Op::NOT_A) | to_underlying(Op::NAND) << 4,
@@ -20,17 +18,6 @@ enum class InstructionSet : std::uint64_t {
     C = BASIC | to_underlying(Op::XOR) << 12,
     X64 = C | to_underlying(Op::A_ANDN_B) << 16,
 };
-
-struct TruthTable {
-    /// table where all don't cares are false
-    std::uint64_t f;
-    /// table where all don't cares are true
-    std::uint64_t t;
-};
-
-[[nodiscard]] TruthTable truth_table_parse(std::string_view str) noexcept;
-
-[[nodiscard]] bool truth_table_is_valid(std::string_view str) noexcept;
 
 struct Instruction {
     /// the truth table of the operation
@@ -53,26 +40,25 @@ struct Instruction {
 
 inline constexpr Instruction EOF_INSTRUCTION = {0xff, 0xff, 0xff};
 
-struct Program {
-    using instruction_type = Instruction;
-    using state_type = bitvec256;
+template <typename T, std::size_t N>
+struct ProgramBase {
+    using instruction_type = T;
     using size_type = std::size_t;
-    static constexpr size_type instruction_count = 250;
+    static constexpr size_type instruction_count = N;
 
 private:
-    std::array<Instruction, instruction_count> instructions;
-    size_type length;
+    std::array<instruction_type, instruction_count> instructions{};
+    size_type length = 0;
 
 public:
-    size_type variables;
-    std::array<std::string, 6> symbols;
-
-public:
-    explicit Program(const size_type variables = 0) : instructions{}, length{0}, variables{variables} {}
-
     constexpr size_type size() const noexcept
     {
         return length;
+    }
+
+    constexpr bool empty() const noexcept
+    {
+        return length == 0;
     }
 
     constexpr instruction_type operator[](const size_type i) const noexcept
@@ -83,11 +69,6 @@ public:
     constexpr void push(const instruction_type ins) noexcept
     {
         instructions[length++] = ins;
-    }
-
-    constexpr void push(const Op op, const unsigned a, const unsigned b) noexcept
-    {
-        push({static_cast<std::uint8_t>(op), static_cast<std::uint8_t>(a), static_cast<std::uint8_t>(b)});
     }
 
     constexpr void pop() noexcept
@@ -109,6 +90,23 @@ public:
     {
         length = 0;
     }
+};
+
+struct Program : public ProgramBase<Instruction, 250> {
+    using state_type = bitvec256;
+    using base_type = ProgramBase<Instruction, 250>;
+
+    size_type variables;
+    std::array<std::string, 6> symbols;
+
+    explicit Program(const size_type variables = 0) noexcept : variables{variables} {}
+
+    using base_type::push;
+
+    constexpr void push(const Op op, const unsigned a, const unsigned b) noexcept
+    {
+        push({static_cast<std::uint8_t>(op), static_cast<std::uint8_t>(a), static_cast<std::uint8_t>(b)});
+    }
 
     [[nodiscard]] std::string symbol(size_type i, bool input_prefix = true) const noexcept;
 
@@ -117,10 +115,16 @@ public:
     [[nodiscard]] TruthTable compute_truth_table() const noexcept;
 };
 
-[[nodiscard]] std::vector<Instruction> find_equivalent_programs(const TruthTable table,
-                                                                InstructionSet instructionSet,
-                                                                std::size_t variables,
-                                                                bool exhaustive) noexcept;
+struct ProgramConsumer {
+    virtual ~ProgramConsumer();
+    virtual void operator()(const Instruction *ins, std::size_t count) = 0;
+};
+
+void find_equivalent_programs(ProgramConsumer &consumer,
+                              const TruthTable table,
+                              InstructionSet instructionSet,
+                              std::size_t variables,
+                              bool exhaustive);
 
 std::ostream &print_instruction(std::ostream &out, Instruction ins, const Program &p);
 

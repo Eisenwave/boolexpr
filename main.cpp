@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include "compiler.hpp"
+#include "constants.hpp"
 #include "lexer.hpp"
 #include "program.hpp"
 
@@ -13,6 +14,7 @@ struct LaunchOptions {
     TruthTable table;
     std::size_t table_variables = 0;
     std::string expression_str;
+    SymbolOrder symbol_order = SymbolOrder::LEX_ASCENDING;
 
     bool is_help = false;
 
@@ -25,27 +27,6 @@ struct LaunchOptions {
     bool is_compile = false;
     bool is_build_table = false;
 };
-
-constexpr auto HELP_SHORT = 'h';
-constexpr auto HELP_LONG = "--help";
-constexpr auto EXPR_SHORT = 'e';
-constexpr auto EXPR_LONG = "--expr";
-constexpr auto TABLE_SHORT = 't';
-constexpr auto TABLE_LONG = "--table";
-constexpr auto GREEDY_SHORT = 'g';
-constexpr auto GREEDY_LONG = "--greedy";
-constexpr auto OUTPUT_EXPR_SHORT = 'x';
-constexpr auto OUTPUT_EXPR_LONG = "--print-expr";
-constexpr auto OUTPUT_PROGRAM_SHORT = 'p';
-constexpr auto OUTPUT_PROGRAM_LONG = "--print-program";
-constexpr auto TOKENIZE_SHORT = 'Z';
-constexpr auto TOKENIZE_LONG = "--tokenize";
-constexpr auto POLISH_SHORT = 'P';
-constexpr auto POLISH_LONG = "--polish";
-constexpr auto COMPILE_SHORT = 'C';
-constexpr auto COMPILE_LONG = "--compile";
-constexpr auto BUILD_TABLE_SHORT = 'B';
-constexpr auto BUILD_TABLE_LONG = "--build-table";
 
 [[nodiscard]] constexpr char parse_option(LaunchOptions &result, const std::string_view arg) noexcept
 {
@@ -62,6 +43,9 @@ constexpr auto BUILD_TABLE_LONG = "--build-table";
     }
     if (arg[1] == TABLE_SHORT || arg == TABLE_LONG) {
         return 't';
+    }
+    if (arg[1] == SYMBOL_ORDER_SHORT || arg == SYMBOL_ORDER_LONG) {
+        return 's';
     }
 
     if (arg[1] == GREEDY_SHORT || arg == GREEDY_LONG) {
@@ -96,6 +80,19 @@ constexpr auto BUILD_TABLE_LONG = "--build-table";
     return 0;
 }
 
+constexpr std::optional<SymbolOrder> order_parse(const std::string_view str) noexcept
+{
+    switch (tiny_string(str)) {
+    case tiny_string("l"):
+    case tiny_string("la"): return SymbolOrder::LEX_ASCENDING;
+    case tiny_string("ld"): return SymbolOrder::LEX_DESCENDING;
+    case tiny_string("a"):
+    case tiny_string("aa"): return SymbolOrder::APPEARANCE_ASCENDING;
+    case tiny_string("ad"): return SymbolOrder::APPEARANCE_DESCENDING;
+    default: return std::nullopt;
+    }
+}
+
 [[nodiscard]] LaunchOptions parse_program_args(int argc, char **argv)
 {
     LaunchOptions result;
@@ -118,6 +115,16 @@ constexpr auto BUILD_TABLE_LONG = "--build-table";
             result.table = truth_table_parse(arg);
             result.table_variables = arg.length();
             state = 0;
+            break;
+        }
+
+        case 's': {
+            std::optional<SymbolOrder> order = order_parse(arg);
+            if (not order.has_value()) {
+                std::cout << "Invalid symbol order \"" << arg << "\", must be l, la, ld, a, aa, or ad\n";
+                std::exit(1);
+            }
+            result.symbol_order = *order;
             break;
         }
 
@@ -202,52 +209,86 @@ constexpr auto BUILD_TABLE_LONG = "--build-table";
     return EXIT_SUCCESS;
 }
 
-[[nodiscard]] int run_output_table(std::uint64_t table, const std::size_t variables)
+[[nodiscard]] int run_output_table(const Program &program, const std::uint64_t table)
 {
-    for (std::size_t v = 0; v < 1 << variables; ++v) {
+    static constexpr std::string_view FALLBACK_SYMBOLS[]{"A", "B", "C", "D", "E", "F"};
+
+    for (std::size_t v = 0; v < std::size_t{1} << program.variables; ++v) {
         if (v != 0 && v % 4 == 0) {
             std::cout << '.';
         }
-        std::cout << (table & 1);
-        table >>= 1;
+        std::cout << (table >> v & 1);
     }
-    std::cout << '\n';
+    std::cout << "\n\n";
 
-    return EXIT_SUCCESS;
-}
-
-[[nodiscard]] int print_results(const std::vector<Instruction> &results,
-                                const std::size_t variables,
-                                const LaunchOptions &options,
-                                Program *const original_program = nullptr)
-{
-    Program program{variables};
-    if (original_program != nullptr) {
-        program.symbols = original_program->symbols;
+    std::size_t symbol_widths[VARIABLE_COUNT];
+    for (std::size_t i = 0; i < VARIABLE_COUNT; ++i) {
+        symbol_widths[i] = program.symbols[i].size();
     }
-    bool first = true;
-    for (Instruction ins : results) {
-        if (ins == EOF_INSTRUCTION) {
-            if (not first && options.is_output_program) {
-                std::cout << '\n';
-            }
-            first = false;
 
-            if (options.is_output_expr || (not options.is_output_expr && not options.is_output_program)) {
-                print_program_as_expression(std::cout, program);
-            }
-            if (options.is_output_program) {
-                std::cout << program;
-            }
+    for (std::size_t v = 0; v < program.variables; ++v) {
+        bool has_symbol = symbol_widths[v] != 0;
+        std::string_view symbol = has_symbol ? program.symbols[v] : FALLBACK_SYMBOLS[v];
+        std::cout << ' ' << std::setw(static_cast<int>(symbol.size())) << symbol << " |";
+    }
+    std::cout << " =\n";
 
-            program.clear();
-            continue;
+    for (std::size_t v = 0; v < std::size_t{1} << program.variables; ++v) {
+        if (v % 4 == 0) {
+            for (std::size_t v = 0; v < program.variables; ++v) {
+                std::size_t len = symbol_widths[v] ? symbol_widths[v] : 1;
+                std::cout << std::string(len + 2, '-') << "+";
+            }
+            std::cout << "---\n";
         }
-        program.push(ins);
+
+        for (std::size_t i = 0; i < program.variables; ++i) {
+            std::size_t len = symbol_widths[i] ? symbol_widths[i] : 1;
+            std::cout << ' ' << std::setw(static_cast<int>(len)) << (v >> i & 1) << " |";
+        }
+        std::cout << ' ' << (table >> v & 1) << '\n';
     }
 
     return EXIT_SUCCESS;
 }
+
+struct PrintingProgramConsumer : public ProgramConsumer {
+    Program program;
+    LaunchOptions options;
+    bool first = true;
+
+    [[nodiscard]] PrintingProgramConsumer(const std::size_t variables,
+                                          LaunchOptions options,
+                                          Program *const original_program = nullptr) noexcept
+        : program{variables}, options{std::move(options)}
+    {
+        if (original_program != nullptr) {
+            program.symbols = original_program->symbols;
+        }
+    }
+
+    void operator()(const Instruction *ins, const std::size_t count) final
+    {
+        program.clear();
+        for (std::size_t i = 0; i < count; ++i) {
+            program.push(ins[i]);
+        }
+
+        if (not first && options.is_output_program) {
+            std::cout << '\n';
+        }
+        first = false;
+
+        if (options.is_output_expr || (not options.is_output_expr && not options.is_output_program)) {
+            print_program_as_expression(std::cout, program);
+        }
+        if (options.is_output_program) {
+            std::cout << program;
+        }
+
+        program.clear();
+    }
+};
 
 [[nodiscard]] int run_with_expression(const LaunchOptions &options)
 {
@@ -263,7 +304,7 @@ constexpr auto BUILD_TABLE_LONG = "--build-table";
     }
 
     const std::vector<Token> tokens = tokenize(options.expression_str);
-    Program program = compile(tokens);
+    Program program = compile(tokens, options.symbol_order);
 
     if (options.is_compile) {
         std::cout << program;
@@ -272,21 +313,22 @@ constexpr auto BUILD_TABLE_LONG = "--build-table";
 
     const TruthTable table = program.compute_truth_table();
     if (options.is_build_table) {
-        return run_output_table(table.t, program.variables);
+        return run_output_table(program, table.t);
     }
-    const std::vector<Instruction> results =
-        find_equivalent_programs(table, InstructionSet::C, program.variables, options.is_greedy);
 
-    return print_results(results, program.variables, options, &program);
+    PrintingProgramConsumer consumer{program.variables, options, &program};
+
+    find_equivalent_programs(consumer, table, InstructionSet::C, program.variables, options.is_greedy);
+    return EXIT_SUCCESS;
 }
 
 [[nodiscard]] int run_with_truth_table(const LaunchOptions &options)
 {
     const std::size_t variables = log2floor(options.table_variables);
-    const std::vector<Instruction> results =
-        find_equivalent_programs(options.table, InstructionSet::C, variables, options.is_greedy);
+    PrintingProgramConsumer consumer{variables, options};
 
-    return print_results(results, variables, options);
+    find_equivalent_programs(consumer, options.table, InstructionSet::C, variables, options.is_greedy);
+    return EXIT_SUCCESS;
 }
 
 [[nodiscard]] int run(const LaunchOptions &options)
@@ -314,8 +356,20 @@ constexpr auto BUILD_TABLE_LONG = "--build-table";
 
 }  // namespace
 
+#include "bruteforce.hpp"
+
+#define ASSERT(...) (static_cast<bool>(__VA_ARGS__) ? void() : throw 0)
+
 int main(int argc, char **argv)
 {
+    CanonicalProgram p(6);
+    ASSERT(p.try_push(Op::NOT_A, 4));
+    ASSERT(p.try_push(Op::AND, 3, 6));
+    ASSERT(p.try_push(Op::XOR, 2, 7));
+    ASSERT(p.try_push(Op::NOT_A, 8));
+    ASSERT(p.try_push(Op::AND, 1, 9));
+    ASSERT(p.try_push(Op::OR, 0, 10));
+
     if (argc <= 1) {
         return run_help(std::cout);
     }

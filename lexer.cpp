@@ -19,25 +19,12 @@ namespace {
     return is_digit(c) || is_alpha(c);
 }
 
+#if 0
 [[nodiscard]] constexpr char to_lower(const char c) noexcept
 {
     return c | 32;
 }
-
-[[nodiscard]] constexpr std::uint64_t tiny_string(std::string_view str) noexcept
-{
-    std::uint64_t result = 0;
-    if (str.length() > 8) {
-        return result;
-    }
-    for (const char c : str) {
-        result <<= 8;
-        result |= static_cast<std::uint8_t>(to_lower(c));
-    }
-    return result;
-}
-
-static_assert(tiny_string("nOR") == ('n' << 16 | 'o' << 8 | 'r'));
+#endif
 
 [[nodiscard]] constexpr TokenType token_of_word(std::string_view word) noexcept
 {
@@ -71,6 +58,7 @@ static_assert(tiny_string("nOR") == ('n' << 16 | 'o' << 8 | 'r'));
     case '~': return TokenType::NOT;
     case '+': return TokenType::OR;
     case '*': return TokenType::AND;
+    case '^': return TokenType::XOR;
     case '(': return TokenType::PARENS_OPEN;
     case ')': return TokenType::PARENS_CLOSE;
     default: return TokenType::EMPTY;
@@ -162,6 +150,7 @@ char ExpressionTokenizer::tokenize_after_whitespace(const char c)
     case '~':
     case '+':
     case '*':
+    case '^':
     case '(':
     case ')': push(token_type_of_char(c), c); return ' ';
     case ' ':
@@ -183,6 +172,7 @@ char ExpressionTokenizer::tokenize_in_literal(const char c)
     case '~':
     case '+':
     case '*':
+    case '^':
     case '(':
     case ')':
         push(TokenType::LITERAL, std::move(literal));
@@ -208,6 +198,7 @@ char ExpressionTokenizer::tokenize_after_exclamation(const char c)
     case '~':
     case '+':
     case '*':
+    case '^':
     case '(':
     case ')':
         push(TokenType::NOT, '!');
@@ -230,6 +221,7 @@ char ExpressionTokenizer::tokenize_after_equals(const char c)
     case '~':
     case '+':
     case '*':
+    case '^':
     case '(':
     case ')':
         push(TokenType::NXOR, '=');
@@ -259,6 +251,7 @@ char ExpressionTokenizer::tokenize_after_double_op(const char c)
     case '~':
     case '+':
     case '*':
+    case '^':
     case '(':
     case ')':
         push(type, Start);
