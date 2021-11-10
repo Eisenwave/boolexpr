@@ -65,6 +65,12 @@ public:
         this->used_instructions = 0;
     }
 
+    void clear() noexcept
+    {
+        used_instructions = 0;
+        base_type::clear();
+    }
+
     void push(const instruction_type ins) noexcept
     {
         const auto use = state_type{1} << ins.a | state_type{1} << ins.b;

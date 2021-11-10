@@ -39,6 +39,8 @@ struct Instruction {
 };
 
 inline constexpr Instruction EOF_INSTRUCTION = {0xff, 0xff, 0xff};
+inline constexpr Instruction FALSE_INSTRUCTION{static_cast<std::uint8_t>(Op::FALSE), 0, 0};
+inline constexpr Instruction TRUE_INSTRUCTION{static_cast<std::uint8_t>(Op::TRUE), 0, 0};
 
 template <typename T, std::size_t N>
 struct ProgramBase {

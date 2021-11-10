@@ -75,6 +75,10 @@ public:
 
     void find_equivalent_program() noexcept
     {
+        if (find_equivalent_trivial_program() || find_equivalent_mov_program()) {
+            return;
+        }
+
         for (std::size_t target_length = 1;; ++target_length) {
             program.reset(target_length);
 
@@ -85,6 +89,37 @@ public:
     }
 
 private:
+    bool find_equivalent_trivial_program() noexcept
+    {
+        if (table.f == 0) {
+            consumer(&FALSE_INSTRUCTION, 1);
+            return found = true;
+        }
+
+        const auto mask = (variables == 6 ? 0 : (std::uint64_t{1} << (std::uint64_t{1} << variables))) - 1;
+        if (table.t == mask) {
+            consumer(&TRUE_INSTRUCTION, 1);
+            return found = true;
+        }
+        return found;
+    }
+
+    bool find_equivalent_mov_program() noexcept
+    {
+        for (std::uint8_t i = 0; i < variables; ++i) {
+            const std::uint8_t op8 = static_cast<std::uint8_t>(Op::A);
+            program.push({op8, i, 0, 1});
+            if (program_emulate<TruthTableMode::TEST>(program, variables, table)) {
+                on_matching_emulation();
+            }
+            program.clear();
+            if (found) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     template <typename V>
     FinderDecision do_find_equivalent_program(const V variables) noexcept;
 
@@ -184,7 +219,6 @@ std::ostream &do_print_program_as_expression(std::ostream &out, const Program &p
     }
     unsigned a = ins.a;
     unsigned b = ins.b;
-    bool is_simple_unary = op_is_unary(op) && a < 6;
 
     if (op_display_is_reversed(op)) {
         std::swap(a, b);
@@ -192,7 +226,7 @@ std::ostream &do_print_program_as_expression(std::ostream &out, const Program &p
     if (op_is_complement(op)) {
         out << op_display_label(Op::NOT_A);
     }
-    if (not is_simple_unary) {
+    if (not op_is_unary(op)) {
         out << '(';
     }
 
@@ -213,10 +247,7 @@ std::ostream &do_print_program_as_expression(std::ostream &out, const Program &p
 
     if (not op_is_unary(op)) {
         out << ' ' << op_display_label(op) << ' ';
-        print_operand(b);
-    }
-    if (not is_simple_unary) {
-        out << ')';
+        print_operand(b) << ')';
     }
     return out;
 }

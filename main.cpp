@@ -12,7 +12,7 @@ namespace {
 
 struct LaunchOptions {
     TruthTable table;
-    std::size_t table_variables = 0;
+    std::size_t table_variables_len = 0;
     std::string expression_str;
     SymbolOrder symbol_order = SymbolOrder::LEX_ASCENDING;
 
@@ -113,7 +113,7 @@ constexpr std::optional<SymbolOrder> order_parse(const std::string_view str) noe
                 std::exit(1);
             }
             result.table = truth_table_parse(arg);
-            result.table_variables = arg.length();
+            result.table_variables_len = arg.length();
             state = 0;
             break;
         }
@@ -209,16 +209,21 @@ constexpr std::optional<SymbolOrder> order_parse(const std::string_view str) noe
     return EXIT_SUCCESS;
 }
 
+void output_table_short(std::ostream &out, const std::size_t variables, const std::uint64_t table)
+{
+    for (std::size_t v = 0; v < std::size_t{1} << variables; ++v) {
+        if (v != 0 && v % 4 == 0) {
+            out << '.';
+        }
+        out << (table >> v & 1);
+    }
+}
+
 [[nodiscard]] int run_output_table(const Program &program, const std::uint64_t table)
 {
     static constexpr std::string_view FALLBACK_SYMBOLS[]{"A", "B", "C", "D", "E", "F"};
 
-    for (std::size_t v = 0; v < std::size_t{1} << program.variables; ++v) {
-        if (v != 0 && v % 4 == 0) {
-            std::cout << '.';
-        }
-        std::cout << (table >> v & 1);
-    }
+    output_table_short(std::cout, program.variables, table);
     std::cout << "\n\n";
 
     std::size_t symbol_widths[VARIABLE_COUNT];
@@ -324,7 +329,7 @@ struct PrintingProgramConsumer : public ProgramConsumer {
 
 [[nodiscard]] int run_with_truth_table(const LaunchOptions &options)
 {
-    const std::size_t variables = log2floor(options.table_variables);
+    const std::size_t variables = log2floor(options.table_variables_len);
     PrintingProgramConsumer consumer{variables, options};
 
     find_equivalent_programs(consumer, options.table, InstructionSet::C, variables, options.is_greedy);
@@ -337,7 +342,7 @@ struct PrintingProgramConsumer : public ProgramConsumer {
         return run_help(std::cout);
     }
     const bool has_expression = not options.expression_str.empty();
-    const bool has_table = options.table_variables != 0;
+    const bool has_table = options.table_variables_len != 0;
 
     if (has_expression && has_table) {
         std::cout << "Conflicting inputs: both truth table and expression provided\n";
@@ -354,6 +359,28 @@ struct PrintingProgramConsumer : public ProgramConsumer {
     return EXIT_FAILURE;
 }
 
+#if 0
+[[nodiscard]] int run_exhaustive(const unsigned variables)
+{
+    for (std::size_t t = 0; t < std::uint64_t{1} << (1 << variables); ++t) {
+        LaunchOptions options;
+        options.table = {t, t};
+        options.table_variables_len = 1 << variables;
+        options.is_output_expr = true;
+        options.is_output_program = true;
+
+        output_table_short(std::cout, variables, t);
+        std::cout << ' ';
+
+        if (run_with_truth_table(options) != EXIT_SUCCESS) {
+            return EXIT_FAILURE;
+        }
+        std::cout << '\n';
+    }
+    return EXIT_SUCCESS;
+}
+#endif
+
 }  // namespace
 
 #include "bruteforce.hpp"
@@ -369,6 +396,8 @@ int main(int argc, char **argv)
     ASSERT(p.try_push(Op::NOT_A, 8));
     ASSERT(p.try_push(Op::AND, 1, 9));
     ASSERT(p.try_push(Op::OR, 0, 10));
+
+    // return run_exhaustive(3);
 
     if (argc <= 1) {
         return run_help(std::cout);
