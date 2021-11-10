@@ -37,13 +37,22 @@ struct CanonicalInstruction {
     }
 };
 
-struct CanonicalProgram : public ProgramBase<CanonicalInstruction, 58> {
+struct CanonicalProgram : protected ProgramBase<CanonicalInstruction, 58> {
     using state_type = std::uint64_t;
+    using base_type = ProgramBase<CanonicalInstruction, 58>;
+    using base_type::instruction_count;
+    using base_type::instruction_type;
 
 public:
     size_type target_length;
+    state_type used_instructions = 0;
 
     explicit CanonicalProgram(const size_type target_length) noexcept : target_length{target_length} {}
+
+    using base_type::empty;
+    using base_type::size;
+    using base_type::operator[];
+    using base_type::top;
 
     bool try_push(const Op op, const unsigned a) noexcept;
 
@@ -53,6 +62,23 @@ public:
     {
         clear();
         this->target_length = target_length;
+        this->used_instructions = 0;
+    }
+
+    void push(const instruction_type ins) noexcept
+    {
+        const auto use = state_type{1} << ins.a | state_type{1} << ins.b;
+        used_instructions |= use >> 6;
+        base_type::push(ins);
+    }
+
+    void pop() noexcept
+    {
+        const size_type new_length = std::exchange(length, 0) - 1;
+        used_instructions = 0;
+        for (size_type i = 0; i < new_length; ++i) {
+            push(instructions[i]);
+        }
     }
 };
 

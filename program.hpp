@@ -46,7 +46,7 @@ struct ProgramBase {
     using size_type = std::size_t;
     static constexpr size_type instruction_count = N;
 
-private:
+protected:
     std::array<instruction_type, instruction_count> instructions{};
     size_type length = 0;
 
@@ -66,16 +66,6 @@ public:
         return instructions[i];
     }
 
-    constexpr void push(const instruction_type ins) noexcept
-    {
-        instructions[length++] = ins;
-    }
-
-    constexpr void pop() noexcept
-    {
-        --length;
-    }
-
     constexpr instruction_type &top() noexcept
     {
         return instructions[length - 1];
@@ -89,6 +79,16 @@ public:
     constexpr void clear() noexcept
     {
         length = 0;
+    }
+
+    constexpr void push(const instruction_type ins) noexcept
+    {
+        instructions[length++] = ins;
+    }
+
+    constexpr void pop() noexcept
+    {
+        --length;
     }
 };
 

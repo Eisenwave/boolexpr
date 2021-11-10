@@ -5,15 +5,23 @@
 #include <string_view>
 #include <type_traits>
 
+#include "builtin.hpp"
+
 template <typename Enum>
 [[nodiscard]] constexpr std::underlying_type_t<Enum> to_underlying(Enum e) noexcept
 {
     return static_cast<std::underlying_type_t<Enum>>(e);
 }
 
-[[nodiscard]] constexpr unsigned log2floor(unsigned long long x) noexcept
+[[nodiscard]] inline unsigned log2floor(unsigned long long x) noexcept
 {
-    return (x != 0) * (63u - static_cast<unsigned>(__builtin_clzll(x)));
+    constexpr auto max = sizeof(unsigned long long) * 8 - 1ull;
+    return (x != 0) * (max - static_cast<unsigned>(builtin::clz(x)));
+}
+
+[[nodiscard]] inline unsigned popcount(unsigned long long x) noexcept
+{
+    return static_cast<unsigned>(builtin::popcount(x));
 }
 
 [[nodiscard]] constexpr bool is_pow_2(unsigned long long x) noexcept
