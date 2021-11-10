@@ -109,10 +109,10 @@ constexpr std::optional<SymbolOrder> order_parse(const std::string_view str) noe
 
         case 't': {
             arg.erase(std::remove(arg.begin(), arg.end(), '.'), arg.end());
-            if (not truth_table_is_valid(arg)) {
+            if (not TruthTable::is_well_formed(arg)) {
                 std::exit(1);
             }
-            result.table = truth_table_parse(arg);
+            result.table = TruthTable::parse(arg);
             result.table_variables_len = arg.length();
             state = 0;
             break;
@@ -359,8 +359,7 @@ struct PrintingProgramConsumer : public ProgramConsumer {
     return EXIT_FAILURE;
 }
 
-#if 0
-[[nodiscard]] int run_exhaustive(const unsigned variables)
+[[nodiscard, maybe_unused]] int run_exhaustive(const unsigned variables)
 {
     for (std::size_t t = 0; t < std::uint64_t{1} << (1 << variables); ++t) {
         LaunchOptions options;
@@ -368,9 +367,16 @@ struct PrintingProgramConsumer : public ProgramConsumer {
         options.table_variables_len = 1 << variables;
         options.is_output_expr = true;
         options.is_output_program = true;
+        std::uint64_t relev = options.table.relevancy(variables);
 
         output_table_short(std::cout, variables, t);
-        std::cout << ' ';
+        std::cout << " (";
+        for (unsigned i = 0; i < variables; ++i) {
+            if (relev >> i & 1) {
+                std::cout << char('A' + i);
+            }
+        }
+        std::cout << ") ";
 
         if (run_with_truth_table(options) != EXIT_SUCCESS) {
             return EXIT_FAILURE;
@@ -379,7 +385,6 @@ struct PrintingProgramConsumer : public ProgramConsumer {
     }
     return EXIT_SUCCESS;
 }
-#endif
 
 }  // namespace
 
@@ -389,7 +394,7 @@ struct PrintingProgramConsumer : public ProgramConsumer {
 
 int main(int argc, char **argv)
 {
-    CanonicalProgram p(6);
+    CanonicalProgram p(6, 0b11111);
     ASSERT(p.try_push(Op::NOT_A, 4));
     ASSERT(p.try_push(Op::AND, 3, 6));
     ASSERT(p.try_push(Op::XOR, 2, 7));

@@ -69,7 +69,11 @@ public:
                            const std::size_t variables,
                            const std::size_t target_length,
                            const bool greedy) noexcept
-        : consumer{consumer}, program{target_length}, table{table}, variables{variables}, greedy{greedy}
+        : consumer{consumer}
+        , program{target_length, table.relevancy(variables)}
+        , table{table}
+        , variables{variables}
+        , greedy{greedy}
     {
     }
 
@@ -154,7 +158,7 @@ FinderDecision ProgramFinder<InstructionSet>::do_find_equivalent_program(const V
 {
     static_assert(std::is_convertible_v<V, unsigned>);
 
-    if (program.size() == program.target_length) {
+    if (program.size() == program.target_length()) {
         if (program_emulate<TruthTableMode::TEST>(program, variables, table)) {
             on_matching_emulation();
             return greedy ? FinderDecision::KEEP_SEARCHING : FinderDecision::ABORT;

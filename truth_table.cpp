@@ -6,7 +6,7 @@
 
 #include "truth_table.hpp"
 
-TruthTable truth_table_parse(const std::string_view str) noexcept
+TruthTable TruthTable::parse(const std::string_view str) noexcept
 {
     std::uint64_t f = 0, t = 0;
     for (std::uint64_t i = 0; i < str.length(); ++i) {
@@ -21,7 +21,7 @@ TruthTable truth_table_parse(const std::string_view str) noexcept
     return {f, t};
 }
 
-bool truth_table_is_valid(const std::string_view str) noexcept
+bool TruthTable::is_well_formed(const std::string_view str) noexcept
 {
     if (str.length() > 64) {
         std::cout << "Truth table is too long (at most 64 entries supported)\n";

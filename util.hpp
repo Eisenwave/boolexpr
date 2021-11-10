@@ -7,6 +7,23 @@
 
 #include "builtin.hpp"
 
+struct bitvec256 {
+    std::uint64_t bits[4];
+
+    [[nodiscard]] bitvec256(std::uint64_t bits) noexcept : bits{bits, 0, 0, 0} {}
+};
+
+template <typename L, typename R = L>
+struct pair {
+    L first;
+    R second;
+
+    constexpr bool operator==(const pair &other) const noexcept
+    {
+        return first == other.first && second == other.second;
+    }
+};
+
 template <typename Enum>
 [[nodiscard]] constexpr std::underlying_type_t<Enum> to_underlying(Enum e) noexcept
 {
@@ -29,12 +46,6 @@ template <typename Enum>
     return (x & (x - 1)) == 0 && x != 0;
 }
 
-struct bitvec256 {
-    std::uint64_t bits[4];
-
-    [[nodiscard]] bitvec256(std::uint64_t bits) noexcept : bits{bits, 0, 0, 0} {}
-};
-
 [[nodiscard]] constexpr bool get_bit(const bitvec256 &vec, const std::uint64_t i) noexcept
 {
     return vec.bits[i / 64] >> i % 64 & 1;
@@ -54,6 +65,23 @@ constexpr void set_bit_if(std::uint64_t &vec, const std::uint64_t i, const bool 
 {
     vec |= std::uint64_t{condition} << i;
 }
+
+[[nodiscard]] constexpr pair<std::uint64_t> split_bits_alternating(const std::uint64_t bits,
+                                                                   const std::uint64_t magnitude) noexcept
+{
+    std::uint64_t result[2]{};
+    std::size_t indices[2]{};
+    for (std::size_t i = 0; i < 64; ++i) {
+        const auto bit = bits >> i & 1;
+        const auto choice = i >> magnitude & 1;
+        result[choice] |= bit << indices[choice]++;
+    }
+    return {result[0], result[1]};
+}
+
+static_assert(split_bits_alternating(0b1010'1010, 0) == pair<std::uint64_t>{0, 0xf});
+static_assert(split_bits_alternating(0b1100'1100, 1) == pair<std::uint64_t>{0, 0xf});
+static_assert(split_bits_alternating(0b1111'0000, 2) == pair<std::uint64_t>{0, 0xf});
 
 template <typename T>
 constexpr auto swap_if(T &a, T &b, const bool c) noexcept -> std::enable_if_t<std::is_fundamental_v<T>, void>

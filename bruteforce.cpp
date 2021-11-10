@@ -46,16 +46,18 @@ namespace {
     return static_cast<Op>(ins.op) == Op::NOT_A && program[b - 6].a == a;
 }
 
+template <bool Unary>
 [[nodiscard]] bool is_program_unrevivable(const CanonicalProgram &program, const unsigned a, const unsigned b) noexcept
 {
     using state_type = CanonicalProgram::state_type;
 
-    state_type use = state_type{1} << a | state_type{1} << b;
-    use >>= 6;
+    const auto use = state_type{1} << a | state_type{not Unary} << b;
 
-    const std::size_t total_used = popcount(program.used_instructions | use);
-    const std::size_t remaining = program.target_length - program.size();
-    return program.size() + 1 - total_used > remaining;
+    const std::size_t total_used = popcount(program.used_instructions() | use);
+    const std::size_t relevant = popcount(program.target_relevancy());
+    const std::size_t remaining = program.target_length() - program.size();
+
+    return relevant + program.size() + 1 > remaining + total_used;
 }
 
 template <bool Unary>
@@ -88,7 +90,7 @@ template <bool Unary>
     // 5 prevent creation of zombie programs
     //   i.e. programs with so many dead (unused) instructions, that even after the addition of the given instruction,
     //   not all subexpressions of the program can be used
-    if (is_program_unrevivable(program, ins.a, ins.b)) {
+    if (is_program_unrevivable<Unary>(program, ins.a, ins.b)) {
         return false;
     }
 
